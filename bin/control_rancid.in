@@ -1,6 +1,6 @@
 #! /bin/sh
 ##
-## $Id: control_rancid.in 3056 2015-03-12 23:02:27Z heas $
+## $Id: control_rancid.in 3446 2016-08-12 21:46:09Z heas $
 ##
 ## @PACKAGE@ @VERSION@
 ## Copyright (c) @COPYYEARS@ by Terrapin Communications, Inc.
@@ -142,12 +142,12 @@ if [ ! -d $DIR ] ; then
 	echo ""
 	echo "$DIR does not exist."
 	echo "Run bin/rancid-cvs $GROUP to make all of the needed directories."
-    ) | @SENDMAIL@ -t $MAILOPTS
+    ) | $SENDMAIL -t $MAILOPTS
     exit 1
 fi
 cd $DIR
-if [ -e "rancid.conf" ] ; then
-    . rancid.conf
+if [ -f "rancid.conf" ] ; then
+    . ./rancid.conf
 fi
 
 # RCS system
@@ -171,7 +171,7 @@ PAR_COUNT=${PAR_COUNT:-5}
 # Number of times failed collections should be retried.  Minimum 0.
 MAX_ROUNDS=${MAX_ROUNDS:-4}
 if [ $MAX_ROUNDS -lt 0 ] ; then
-    echo "Error: MAX_ROUNDS must be at least 0 or greater."
+    echo "Error: MAX_ROUNDS must be at least 0 or greater." >&2
     MAX_ROUNDS=1
 fi
 
@@ -179,47 +179,59 @@ fi
 case $RCSSYS in
 git )
     if [ ! -f .gitignore ] ; then
-	rm -rf .gitignore
-	cat > .gitignore <<EOF
-routers.all
-routers.down
-routers.up
-EOF
+	touch .gitignore
 	git add .gitignore
     fi
-    if [ ! -f configs/.gitignore ] ; then
-	rm -rf configs/.gitignore
-	cat > configs/.gitignore <<EOF
+    rm -rf .gitignore
+    cat > .gitignore <<EOF
+/routers.all
+/routers.down
+/routers.single
+/routers.up
+/runcount
 .old
 *.new
 *.raw
 EOF
-	git add configs/.gitignore
+    if [ -f .gitignore.locale ] ; then
+	cat .gitignore.locale >> .gitignore
     fi
     ;;
 cvs | svn )
     if [ ! -f .cvsignore ] ; then
-	rm -rf .cvsignore
-	cat >.cvsignore <<EOF
+	touch .cvsignore
+	$RCSSYS add .cvsignore
+    fi
+    rm -rf .cvsignore
+    cat >.cvsignore <<EOF
 .cvsignore
 routers.all
 routers.down
+routers.single
 routers.up
+runcount
 EOF
+    if [ -f .cvsignore.locale ] ; then
+	cat .cvsignore.locale >> .cvsignore
+    fi
     if [ ! -f configs/.cvsignore ] ; then
-	rm -rf configs/.cvsignore
-	cat > configs/.cvsignore <<EOF
+	touch configs/.cvsignore
+	$RCSSYS add configs/.cvsignore
+    fi
+    rm -rf configs/.cvsignore
+    cat > configs/.cvsignore <<EOF2
 .old
 *.new
 *.raw
-EOF
+EOF2
+    if [ -f configs/.cvsignore.locale ] ; then
+	cat configs/.cvsignore.locale >> configs/.cvsignore
     fi
     if [ $RCSSYS = svn ] ; then
 	svn propset svn:ignore -F .cvsignore .
 	svn propset svn:ignore -F configs/.cvsignore configs
 	svn update .
 	svn commit -m 'set svn:ignores' .
-	fi
     fi
     ;;
 esac
@@ -236,6 +248,7 @@ if [ -f rancid.conf ] ; then
 	;;
     git )
 	git status -s rancid.conf | grep '^?'
+	if [ $? -eq 0 ] ; then LN=1; else LN=0; fi
         ;;
     esac
     if [ $LN -eq 0 ] ; then
@@ -274,9 +287,12 @@ if [ ! -f $DIR/router.db ] ; then
 	echo "$MAILHEADERS" | awk '{L = "";LN = $0;while (LN ~ /\\n/) { I = index(LN,"\\n");L = L substr(LN,0,I-1) "\n";LN = substr(LN,I+2,length(LN)-I-1);}print L LN;}'
 	echo ""
 	echo "$DIR/router.db does not exist."
-    ) | @SENDMAIL@ -t $MAILOPTS
+    ) | $SENDMAIL -t $MAILOPTS
     exit 1;
 fi
+
+# IQ test
+@PERLV@ -F\; -ane '{if ($F[0] !~ /^\s*#/ && $F[0] !~ /^\s*$/ && $#F < 2 && $F[0] =~ /:/) {print "WARNING: Have you forgotten to update the FS in router.db?\n"; exit;}}' router.db
 
 # generate the list of all, up, & down routers
 cd $DIR
@@ -360,7 +376,7 @@ if [ $RALL -ne 0 -o $RDOWN -ne 0 -o $RUP -ne 0 ] ; then
 	  echo "$MAILHEADERS" | awk '{L = "";LN = $0;while (LN ~ /\\n/) { I = index(LN,"\\n");L = L substr(LN,0,I-1) "\n";LN = substr(LN,I+2,length(LN)-I-1);}print L LN;}'
 	  echo ""
 	  cat routers.mail
-	) | @SENDMAIL@ -t $MAILOPTS
+	) | $SENDMAIL -t $MAILOPTS
     fi
     rm -f routers.mail
 
@@ -393,15 +409,15 @@ if [ $RALL -ne 0 -o $RDOWN -ne 0 -o $RUP -ne 0 ] ; then
 fi
 mv -f routers.all.new routers.all
 if [ $? -ne 0 ] ; then
-    echo "Error: could not rename routers.all.new"
+    echo "Error: could not rename routers.all.new" >&2
 fi
 mv -f routers.down.new routers.down
 if [ $? -ne 0 ] ; then
-    echo "Error: could not rename routers.down.new"
+    echo "Error: could not rename routers.down.new" >&2
 fi
 mv -f routers.up.new routers.up
 if [ $? -ne 0 ] ; then
-    echo "Error: could not rename routers.up.new"
+    echo "Error: could not rename routers.up.new" >&2
 fi
 rm -f routers.db
 trap 'rm -fr $TMP;' 1 2 15
@@ -420,7 +436,7 @@ for router in `cut -d\; -f1 ../routers.up` ; do
 	fi
 	;;
     svn )
-	if [ ! -e $router ] ; then
+	if [ ! -f $router ] ; then
 	    touch $router
 	fi
 	svn status $router | grep '^?' > /dev/null 2>&1
@@ -431,7 +447,7 @@ for router in `cut -d\; -f1 ../routers.up` ; do
 	fi
         ;;
     git )
-	if [ ! -e $router ] ; then
+	if [ ! -f $router ] ; then
 	    touch $router
 	fi
 	git status $router | grep '^?' > /dev/null 2>&1
@@ -445,7 +461,7 @@ for router in `cut -d\; -f1 ../routers.up` ; do
 done
 echo
 # delete configs from RCS for routers not listed in routers.up.
-for router in `find . \( -name \*.new -prune -o -name CVS -prune -o -name .svn -prune -o -name .gitignore -prune \) -o -type f -print | sed -e 's/^.\///'` ; do
+for router in `find . \( -name \*.new -prune -o -name CVS -prune -o -name .svn -prune -o -name .cvsignore -prune -o -name .gitignore -prune \) -o -type f -print | sed -e 's/^.\///'` ; do
     grep -i "^$router\;" ../router.db > /dev/null 2>&1
     if [ $? -eq 1 ] ; then
 	rm -f $router
@@ -466,15 +482,15 @@ cd $DIR
 
 # no routers, empty list or all 'down'
 if [ ! -s routers.up ] ; then
-    # commit router.db
+    # commit router.db, etc
     message="updates of group $GROUP"
     case $RCSSYS in
     cvs | svn )
-	$RCSSYS commit -m "$message" router.db
+	$RCSSYS commit -m "$message"
 	;;
     git )
 	git add router.db
-	git commit -m "$message" router.db
+	git commit -am "$message"
 	;;
     esac
     exit;
@@ -556,9 +572,9 @@ do
 	if [ ! $lines ] ; then
 	    rm -f $router.new
 	else
-	    mv $router.new $router
+	    mv -f $router.new $router
 	    if [ $? -ne 0 ] ; then
-		echo "Error: could not rename $router.new to $router"
+		echo "Error: could not rename $router.new to $router" >&2
 		rm -f $router.new
 	    fi
 	fi
@@ -582,10 +598,10 @@ if [ "X$DIFFSCRIPT" = "X" ]; then
 else
     case $RCSSYS in
     cvs )
-	cvs -f @DIFF_CMD@ -ko | ($DIFFSCRIPT) 2>&1 >$TMP.diff
+	cvs -f @DIFF_CMD@ -ko | (eval $DIFFSCRIPT) 2>&1 >$TMP.diff
 	;;
     svn | git )
-	$RCSSYS diff | ($DIFFSCRIPT) 2>&1 >$TMP.diff
+	$RCSSYS diff | (eval $DIFFSCRIPT) 2>&1 >$TMP.diff
 	;;
     esac
 fi
@@ -611,15 +627,27 @@ else
     subject="$GROUP $subject"
 fi
 
-# working-directory maintenance
+# working-directory maintenance & cleanup every 100 runs
+if [ -f "runcount" ] ; then
+    read RUNCOUNT < ./runcount
+    RUNCOUNT=`expr $RUNCOUNT + 1`
+else
+    RUNCOUNT=1
+fi
 case $RCSSYS in
 svn )
     svn cleanup
     ;;
 git )
     git push
+    if [ $RUNCOUNT -gt 100 ] ; then
+	git gc --quiet
+	RUNCOUNT=0
+    fi
     ;;
 esac
+rm -f ./runcount
+echo $RUNCOUNT > ./runcount
 
 # Mail out the diffs (if there are any).
 if [ -s $TMP.diff ] ; then
@@ -639,7 +667,7 @@ if [ -s $TMP.diff ] ; then
 	  echo "$MAILHEADERS" | awk '{L = "";LN = $0;while (LN ~ /\\n/) { I = index(LN,"\\n");L = L substr(LN,0,I-1) "\n";LN = substr(LN,I+2,length(LN)-I-1);}print L LN;}'
 	  echo ""
 	  cat $TMP.diff
-	) | @SENDMAIL@ -t $MAILOPTS
+	) | $SENDMAIL -t $MAILOPTS
     else
 	CDIR=`pwd`
 	SDIR=${TMPDIR:=/tmp}/rancid.$GROUP.$$.mail
@@ -666,7 +694,7 @@ if [ -s $TMP.diff ] ; then
 		echo "$MAILHEADERS" | awk '{L = "";LN = $0;while (LN ~ /\\n/) { I = index(LN,"\\n");L = L substr(LN,0,I-1) "\n";LN = substr(LN,I+2,length(LN)-I-1);}print L LN;}'
 		echo ""
 		cat $file
-		) | @SENDMAIL@ -t $MAILOPTS
+		) | $SENDMAIL -t $MAILOPTS
 		LASTIDS="$LASTIDS $MSGID"
 		if [ $n -lt $nfiles ]; then
 		    # this just tries to make the msgs order right in MUAs
@@ -698,7 +726,7 @@ if [ -s $DIR/routers.failed ] ; then
 	  echo "more than $OLDTIME hours."
 
 	  cat $DIR/routers.failed
-	) | @SENDMAIL@ -t $MAILOPTS
+	) | $SENDMAIL -t $MAILOPTS
 fi
 
 # Cleanup

@@ -1,44 +1,9 @@
 package rancid;
 ##
-## $Id: rancid.pm.in 3053 2015-03-09 15:50:00Z heas $
+## $Id: rancid.pm.in 3360 2016-04-04 18:00:52Z heas $
 ##
 ## @PACKAGE@ @VERSION@
-## Copyright (c) @COPYYEARS@ by Terrapin Communications, Inc.
-## All rights reserved.
-##
-## This code is derived from software contributed to and maintained by
-## Terrapin Communications, Inc. by Henry Kilmer, John Heasley, Andrew Partan,
-## Pete Whiting, Austin Schutz, and Andrew Fort.
-##
-## Redistribution and use in source and binary forms, with or without
-## modification, are permitted provided that the following conditions
-## are met:
-## 1. Redistributions of source code must retain the above copyright
-##    notice, this list of conditions and the following disclaimer.
-## 2. Redistributions in binary form must reproduce the above copyright
-##    notice, this list of conditions and the following disclaimer in the
-##    documentation and/or other materials provided with the distribution.
-## 3. All advertising materials mentioning features or use of this software
-##    must display the following acknowledgement:
-##        This product includes software developed by Terrapin Communications,
-##        Inc. and its contributors for RANCID.
-## 4. Neither the name of Terrapin Communications, Inc. nor the names of its
-##    contributors may be used to endorse or promote products derived from
-##    this software without specific prior written permission.
-## 5. It is requested that non-binding fixes and modifications be contributed
-##    back to Terrapin Communications, Inc.
-##
-## THIS SOFTWARE IS PROVIDED BY Terrapin Communications, INC. AND CONTRIBUTORS
-## ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-## TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-## PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COMPANY OR CONTRIBUTORS
-## BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-## CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-## SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-## INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-## CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-## ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-## POSSIBILITY OF SUCH DAMAGE.
+@copyright@
 #
 #  RANCID - Really Awesome New Cisco confIg Differ
 #
@@ -48,7 +13,7 @@ package rancid;
 use 5.010;
 use strict 'vars';
 use warnings;
-use Socket qw(AF_INET AF_INET6 inet_pton);
+use 2.006 Socket qw(AF_INET AF_INET6 inet_pton);
 require(Exporter);
 our @ISA = qw(Exporter);
 
@@ -61,8 +26,10 @@ our $commandstr;			# command string for lscript -c
 our $cmds_regexp;			# command regex for matching input
 our $devtype;				# device type argument
 our $filter_commstr;			# SNMP community string filtering
+our $filter_osc;			# oscillating data filtering mode
 our $filter_pwds;			# password filtering mode
 our $aclsort;				# ACL sorting mode
+our $aclfilterseq;			# ACL sequence filtering mode
 our $log;				# log cmdline option
 our $debug;				# debug cmdline option
 our $file;				# file cmdline option
@@ -81,7 +48,7 @@ our @EXPORT = qw($VERSION $devtype $script $lscript @modules $inloop
 		@commandtable
 		%commands @commands $commandcnt
 		$commandstr $cmds_regexp
-		$filter_commstr $filter_pwds $aclsort
+		$filter_commstr $filter_osc $filter_pwds $aclsort $aclfilterseq
 		$log $debug $file $host $clean_run $found_end $timeo $prompt
 		rancidinit loadtype
 		ProcessHistory numerically keynsort keysort valsort numsort
@@ -122,12 +89,23 @@ sub rancidinit {
     if (defined($ENV{"ACLSORT"}) && $ENV{"ACLSORT"} =~ /no/i) {
 	$aclsort = "";
     }
+    if (defined($ENV{"ACLFILTERSEQ"}) && $ENV{"ACLFILTERSEQ"} =~ /no/i) {
+	$aclfilterseq = "0";
+    } else {
+	$aclfilterseq = "1";
+    }
+
     # determine community string filtering mode
-    if (defined($ENV{"NOCOMMSTR"}) &&
-	($ENV{"NOCOMMSTR"} =~ /yes/i || $ENV{"NOCOMMSTR"} =~ /^$/)) {
+    if (defined($ENV{"NOCOMMSTR"}) && $ENV{"NOCOMMSTR"} =~ /yes/i) {
 	$filter_commstr = 1;
     } else {
 	$filter_commstr = 0;
+    }
+    # determine oscillating data filtering mode
+    if (defined($ENV{"FILTER_OSC"}) && $ENV{"FILTER_OSC"} =~ /no/i) {
+	$filter_osc = 0;
+    } else {
+	$filter_osc = 1;
     }
     # determine password filtering mode
     if (defined($ENV{"FILTER_PWDS"}) && $ENV{"FILTER_PWDS"} =~ /no/i) {
@@ -360,22 +338,24 @@ sub ipaddrval {
 
     if ($a =~ /:/) {
 	my($l);
-	if ($a =~ /\//) {
-	    ($a, $l) = split(/\//, $a);
-	} else {
-	    $l = 128;
+	($a, $l) = split(/\//, $a);
+	if (!defined($l)) {
+	    $l ||= 128;
 	}
 	$norder = inet_pton(AF_INET6, $a);
-	return unpack("H*", $norder) . unpack("H*", pack("C", $l));
+	if (defined($norder)) {
+	    return unpack("H*", $norder) . unpack("H*", pack("C", $l));
+	}
     } else {
 	my($l);
-	if ($a =~ /\//) {
-	    ($a, $l) = split(/\//, $a);
-	} else {
+	($a, $l) = split(/\//, $a);
+	if (!defined($l)) {
 	    $l = 32;
 	}
 	$norder = inet_pton(AF_INET, $a);
-	return(unpack("H*", $norder) . unpack("H*", pack("C", $l)));
+	if (defined($norder)) {
+	    return(unpack("H*", $norder) . unpack("H*", pack("C", $l)));
+	}
     }
 
     # otherwise return the original key value, so as not to sort on null

@@ -1,44 +1,9 @@
 package ios;
 ##
-## $Id: ios.pm.in 3058 2015-03-14 14:55:56Z heas $
+## $Id: ios.pm.in 3419 2016-07-06 00:03:21Z heas $
 ##
 ## @PACKAGE@ @VERSION@
-## Copyright (c) @COPYYEARS@ by Terrapin Communications, Inc.
-## All rights reserved.
-##
-## This code is derived from software contributed to and maintained by
-## Terrapin Communications, Inc. by Henry Kilmer, John Heasley, Andrew Partan,
-## Pete Whiting, Austin Schutz, and Andrew Fort.
-##
-## Redistribution and use in source and binary forms, with or without
-## modification, are permitted provided that the following conditions
-## are met:
-## 1. Redistributions of source code must retain the above copyright
-##    notice, this list of conditions and the following disclaimer.
-## 2. Redistributions in binary form must reproduce the above copyright
-##    notice, this list of conditions and the following disclaimer in the
-##    documentation and/or other materials provided with the distribution.
-## 3. All advertising materials mentioning features or use of this software
-##    must display the following acknowledgement:
-##        This product includes software developed by Terrapin Communications,
-##        Inc. and its contributors for RANCID.
-## 4. Neither the name of Terrapin Communications, Inc. nor the names of its
-##    contributors may be used to endorse or promote products derived from
-##    this software without specific prior written permission.
-## 5. It is requested that non-binding fixes and modifications be contributed
-##    back to Terrapin Communications, Inc.
-##
-## THIS SOFTWARE IS PROVIDED BY Terrapin Communications, INC. AND CONTRIBUTORS
-## ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-## TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-## PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COMPANY OR CONTRIBUTORS
-## BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-## CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-## SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-## INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-## CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-## ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-## POSSIBILITY OF SUCH DAMAGE.
+@copyright@
 #
 #  RANCID - Really Awesome New Cisco confIg Differ
 #
@@ -145,6 +110,12 @@ TOP: while(<$INPUT>) {
 	    print STDERR ("HIT COMMAND:$_") if ($debug);
 	    if (! defined($commands{$cmd})) {
 		print STDERR "$host: found unexpected command - \"$cmd\"\n";
+		$clean_run = 0;
+		last TOP;
+	    }
+	    if (! defined(&{$commands{$cmd}})) {
+		printf(STDERR "$host: undefined function - \"%s\"\n",
+		       $commands{$cmd});
 		$clean_run = 0;
 		last TOP;
 	    }
@@ -392,6 +363,8 @@ LINE:		while (<$INPUT>) {
 		$type = "12000";
 	    } elsif ($proc =~ /1240[48]\/(GRP|PRP)/ || $proc =~ /1241[06]\/(GRP|PRP)/) {
 		$type = "12400";
+	    } elsif ($proc =~ /AIR-L?AP1[12][1234][[1234]/ ) {
+		$type="Aironet";
 	    } else {
 		$type = $proc;
 	    }
@@ -460,10 +433,10 @@ LINE:		while (<$INPUT>) {
     return(0);
 }
 
-# This routine parses "showCellular"
-sub ShowCellular {
+# This routine parses "show activation-key" on ASA
+sub ShowActivationKey {
     my($INPUT, $OUTPUT, $cmd) = @_;
-    print STDERR "    In ShowDetail: $_" if ($debug);
+    print STDERR "    In ShowMTU: $_" if ($debug);
 
     while (<$INPUT>) {
 	tr/\015//d;
@@ -472,6 +445,64 @@ sub ShowCellular {
 	next if (/^\s+\^$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(invalid (input|command) detected|type help or )/i);
+	# the pager can not be disabled per-session on the PIX
+	if (/^(<-+ More -+>)/) {
+	    my($len) = length($1);
+	    s/^$1\s{$len}//;
+	}
+
+	if (/^(failover|licensed) .* for this platform:/i ||
+	    /^active .* activation key/i) {
+	    ProcessHistory("COMMENTS","keysort","LICENSE","! $_");
+	    # parse license features/permanents/etc until an empty line
+	    while (<$INPUT>) {
+		tr/\015//d;
+		goto OUT if (/^$prompt/);	# should not occur
+		s/\s*$//;			# trim trailing WS
+		# the pager can not be disabled per-session on the PIX
+		if (/^(<-+ More -+>)/) {
+		    my($len) = length($1);
+		    s/^$1\s{$len}//;
+		}
+		if (/^\s*$/) {
+		    ProcessHistory("COMMENTS","keysort","LICENSE","!\n");
+		    last;
+		}
+		if (/^([^:]+: \S+\s+)(.*)/) {
+		    my($L) = $1;
+		    my($T) = $2;
+		    if ($T !~ /perpetual/i) {
+			$T = "<limited>";
+		    }
+	    	    ProcessHistory("COMMENTS","keysort","LICENSE","! $L $T\n");
+		} else {
+		    ProcessHistory("COMMENTS","keysort","LICENSE","! $_\n");
+		}
+	    }
+	    next;
+	}
+	ProcessHistory("COMMENTS","keysort","LICENSE","! $_");
+    }
+OUT:ProcessHistory("COMMENTS","keysort","LICENSE","!\n");
+    return(0);
+}
+
+# This routine parses "showCellular"
+sub ShowCellular {
+    my($INPUT, $OUTPUT, $cmd) = @_;
+    print STDERR "    In ShowCellular: $_" if ($debug);
+
+    while (<$INPUT>) {
+	tr/\015//d;
+	last if (/^$prompt/);
+	next if (/^(\s*|\s*$cmd\s*)$/);
+	next if (/^\s+\^$/);
+	return(1) if (/Line has invalid autocommand /);
+	return(1) if (/(invalid (input|command) detected|type help or )/i);
+
+	# Ignore the PDP address and assigned DNS servers
+	next if (/^PDP address/);
+	next if (/^\s*(Primary|Secondary) DNS address/);
 
 	ProcessHistory("COMMENTS","keysort","CELL","!CELL: $_");
     }
@@ -495,6 +526,36 @@ sub ShowDetail {
 	ProcessHistory("COMMENTS","keysort","IO","!STACK: $_");
     }
     ProcessHistory("COMMENTS","keysort","IO","!\n");
+    return(0);
+}
+
+# This routine parses "show license" & "show license udi"
+sub ShowLicense {
+    my($INPUT, $OUTPUT, $cmd) = @_;
+    print STDERR "    In ShowLicense: $_" if ($debug);
+
+    while (<$INPUT>) {
+	tr/\015//d;
+	last if (/^$prompt/);
+	next if (/^(\s*|\s*$cmd\s*)$/);
+	next if (/^\s+\^$/);
+	return(0) if (/% no licensable udi in the system/i);	# show udi on old box
+	return(0) if (/% license not supported on this device/i);# show lic on old box
+	return(0) if (/% incomplete command/i);                 # show lic on old XE box
+	return(1) if (/Line has invalid autocommand /);
+	return(1) if (/(invalid (input|command) detected|type help or )/i);
+
+	# filter the BS from license broker
+	next if (/(renewal attempt|communication attempt):/i);
+	next if (/(period used:|requested time:)/i);		# show lic feature
+	if (/(^\s*period left:\s*)\d+/i) {
+	    ProcessHistory("COMMENTS","keysort","LICENSE","! $1<limited>\n");
+	    next;
+	}
+
+	ProcessHistory("COMMENTS","keysort","LICENSE","! $_");
+    }
+    ProcessHistory("COMMENTS","keysort","LICENSE","!\n");
     return(0);
 }
 
@@ -690,6 +751,9 @@ sub ShowEnv {
 	    s/^$1\s{$len}//;
 	}
 
+	# remove "Fan n RPM is #" on 7201, 7301
+	next if (/ RPM is /);
+
 	if (!$E0) {
 	    $E0 = 1;
 	    ProcessHistory("COMMENTS","keysort","E0","!\n");
@@ -716,6 +780,7 @@ sub ShowEnv {
 	    ProcessHistory("COMMENTS","keysort","E2","!Power: $1\n") && next;
 	/^\s*((RPS|power-supply) (\d|is) .*)/i &&
 	    ProcessHistory("COMMENTS","keysort","E2","!Power: $1\n") && next;
+	/^\s*FAN \d RPM is \d+$/ && next;
 	if (/^\s*((FAN|fan-tray) (\d|is) .*)/i) {
 	    my($tmp) = ($1);
 	    $tmp =~ s/, \S+ speed setting//;
@@ -1088,8 +1153,7 @@ sub ShowContAll {
 	    ProcessHistory("INT","","","!$1\n") && next;
 	/^QUICC Ethernet .*/ &&
 	    ProcessHistory("INT","","","!$_") && next;
-	/^DTE .*\.$/ &&
-	    ProcessHistory("INT","","","!\t$_") && next;
+	/^DTE .*\.$/ && next;
 	/^(cable type :.*),/ &&
 	    ProcessHistory("INT","","","!\t$1\n") && next;
 	/^(.* cable.*), received clockrate \d+$/ &&
@@ -1452,10 +1516,11 @@ REDUX:	tr/\015//d;
 	    }
 	    next;
 	}
-	# 7200, 3600, 2600, and 1700 stuff
+	# 7200, 3800, 3600, 2600, and 1700 stuff
 	if (/^(Slot)\s+(\d+(\/\d+)?):/
 	    || /^\s+(WIC|VIC|WIC\/VIC) Slot (\d):/
-	    || /^(Encryption AIM) (\d):/) {
+	    || /^(Encryption AIM) (\d):/
+	    || /^(AIM Module in slot:) (\d)/) {
 	    if ($1 eq "WIC") {
 		$WIC = "/$2";
 	    } elsif ($1 eq "VIC") {
@@ -1469,6 +1534,13 @@ REDUX:	tr/\015//d;
 		$WIC = undef;
 		ProcessHistory("SLOT","","","!\n");
 		ProcessHistory("SLOT","keysort","B","!Slot $slot: type $1\n");
+		next;
+	    } elsif ($1 eq "AIM Module in slot:") {
+		$slot = "AIM $2";
+		$WIC = undef;
+		ProcessHistory("SLOT","","","!\n");
+		ProcessHistory("SLOT","keysort","B",
+			       "!Slot $slot: type AIM Module\n");
 		next;
 	    } else {
 		$slot = $2;
@@ -1560,6 +1632,10 @@ REDUX:	tr/\015//d;
 	    }
 PerlSucks:
 	    # fru/pid bits
+	    # If slot is blank, call it "Chassis"
+	    if ($slot eq "") {
+		$slot = "Chassis";
+	    }
 	    ProcessHistory("SLOT","keysort","AG","!Slot $slot$WIC: fru $fn\n");
 	    #
 	    ProcessHistory("SLOT","keysort","B","!Slot $slot$WIC: hvers $hw rev $rev\n");
@@ -1869,6 +1945,11 @@ sub ShowVLAN {
 
 	next if (/total.*packets.*(input|output)/i);
 
+	# Aironet AP's traffic counters
+	next if (/\d+\s+bytes.*(input|output)/i);
+	next if (/^\s*Other\s+\d+\s+\d+\s*$/i);
+	next if (/^\s*Bridging\s+Bridge.Group.\d+\s+\d+\s+\d+\s*$/i);
+
 	ProcessHistory("COMMENTS","keysort","IO","!VLAN: $_");
     }
 OUT:ProcessHistory("COMMENTS","keysort","IO","!\n");
@@ -2120,6 +2201,11 @@ TOP:
 	    next;
 	}
 	# ASA/PIX keys in more system:running-config
+	if (/^(( ikev2)? (local|remote)-authentication pre-shared-key ).*/ &&
+	    $filter_pwds >= 1) {
+	    ProcessHistory("","","","!$1 <removed> $'"); next;
+	}
+	# ASA/PIX keys in more system:running-config
 	if (/^(( ikev1)? pre-shared-key | key |failover key ).*/ &&
 	    $filter_pwds >= 1) {
 	    ProcessHistory("","","","!$1 <removed> $'"); next;
@@ -2179,19 +2265,74 @@ TOP:
 	/^access-list\s+(\d\d?)\s+(\S+)\s+(\S+)/ &&
 	    ProcessHistory("ACL $1 $2","$aclsort","$3","$_") && next;
 	# order extended access-lists
+	if ($aclfilterseq) {
 	/^access-list\s+(\d\d\d)\s+(\S+)\s+(\S+)\s+host\s+(\S+)/ &&
 	    ProcessHistory("EACL $1 $2","$aclsort","$4","$_") && next;
 	/^access-list\s+(\d\d\d)\s+(\S+)\s+(\S+)\s+(\d\S+)/ &&
 	    ProcessHistory("EACL $1 $2","$aclsort","$4","$_") && next;
 	/^access-list\s+(\d\d\d)\s+(\S+)\s+(\S+)\s+any/ &&
 	    ProcessHistory("EACL $1 $2","$aclsort","0.0.0.0","$_") && next;
+	}
+	if ($aclfilterseq) {
+	    /^ip(v6)? prefix-list\s+(\S+)\s+seq\s+(\d+)\s+(permit|deny)\s+(\S+)(.*)/
+		&& ProcessHistory("PACL $2 $4","$aclsort","$5",
+				  "ip$1 prefix-list $2 $4 $5$6\n")
+		&& next;
+	}
+	# sort ipv{4,6} access-lists
+	if ($aclfilterseq && /^ipv(4|6) access-list (\S+)\s*$/) {
+	    my($nlri, $key) = ($1, $2);
+	    my($seq, $cmd);
+	    ProcessHistory("ACL $nlri $key","","","$_");
+	    while (<$INPUT>) {
+		tr/\015//d;
+		last if (/^$prompt/ || /^\S/);
+		# ipv4 access-list name
+		#  remark NTP
+   		#  deny ipv4 host 224.0.1.1 any
+		#  deny ipv4 239.0.0.0 0.255.255.255 any
+		#  permit udp any eq 123 any
+		#  permit ipv4 nnn.nnn.nnn.nnn/nn any
+		#  permit nnn.nnn.nnn.nnn/nn
+		# ipv6 access-list name
+		#  permit ipv6 host 2001:nnnn::nnnn any
+		#  permit ipv6 2001:nnn::/nnn any
+		#  permit 2001:nnnn::/64 any
+		#  permit udp any eq 123 any
+		#
+		# line might begin with " sequence nnn permit ..."
+		s/^\s+(sequence (\d+)) / /;
+		my($seq) = $1;
+		my($cmd, $resid) = ($_ =~ /^\s+(\w+) (.+)/);
+		if ($cmd =~ /(permit|deny)/) {
+		    my($ip);
+		    my(@w) = ($resid =~ /(\S+) (\S+) (\S+\s)?(.+)/);
+		    for (my($i) = 0; $i < $#w; $i++) {
+			if ($w[$i] eq "any") {
+			    if ($nlri eq "ipv4") {
+				$ip = "255.255.255.255/32";
+			    } else {
+				$ip = "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128";
+			    }
+			    last;
+			} elsif ($w[$i] =~ /^[:0-9]/ ||
+				 $2[$i] =~ /^[a-fA-F]{1,4}:/) {
+			    $ip = $w[$i];
+			    $ip =~ s/\s+$//;		# trim trailing WS
+			    last;
+			}
+		    }
+		    ProcessHistory("ACL $nlri $key $cmd", "$aclsort", "$ip",
+				   " $cmd $resid\n");
+		} else {
+		    ProcessHistory("ACL $nlri $key $cmd", "", "",
+				   " $cmd $resid\n");
+		}
+	    }
+	}
 	# order arp lists
 	/^arp\s+(\d+\.\d+\.\d+\.\d+)\s+/ &&
 	    ProcessHistory("ARP","$aclsort","$1","$_") && next;
-	/^ip(v6)? prefix-list\s+(\S+)\s+seq\s+(\d+)\s+(permit|deny)\s+(\S+)(.*)/
-	    && ProcessHistory("PACL $2 $4","$aclsort","$5",
-			      "ip$1 prefix-list $2 $4 $5$6\n")
-	    && next;
 	# order logging statements
 	/^logging (\d+\.\d+\.\d+\.\d+)/ &&
 	    ProcessHistory("LOGGING","ipsort","$1","$_") && next;
@@ -2291,7 +2432,7 @@ TOP:
     }
     # The ContentEngine lacks a definitive "end of config" marker.  If we
     # know that it is a CE, SAN, or NXOS and we have seen at least 5 lines
-    # of write term output, we can be reasonably sure that we got the config.
+    # of write term output, we can be reasonably sure that we have the config.
     if (($type eq "CE" || $type eq "SAN" || $type eq "NXOS" ) && $linecnt > 5) {
 	$found_end = 1;
 	return(0);

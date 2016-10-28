@@ -1,46 +1,9 @@
 #! @EXPECT_PATH@ --
 ##
-## $Id$
+## $Id: complogin.in 3447 2016-08-15 20:46:40Z heas $
 ##
 ## @PACKAGE@ @VERSION@
-## Copyright (c) @COPYYEARS@ by Terrapin Communications, Inc.
-## All rights reserved.
-##
-## This code is derived from software contributed to and maintained by
-## Terrapin Communications, Inc. by Henry Kilmer, John Heasley, Andrew Partan,
-## Pete Whiting, Austin Schutz, and Andrew Fort.
-##
-## Redistribution and use in source and binary forms, with or without
-## modification, are permitted provided that the following conditions
-## are met:
-## 1. Redistributions of source code must retain the above copyright
-##    notice, this list of conditions and the following disclaimer.
-## 2. Redistributions in binary form must reproduce the above copyright
-##    notice, this list of conditions and the following disclaimer in the
-##    documentation and/or other materials provided with the distribution.
-## 3. All advertising materials mentioning features or use of this software
-##    must display the following acknowledgement:
-##        This product includes software developed by Terrapin Communications,
-##        Inc. and its contributors for RANCID.
-## 4. Neither the name of Terrapin Communications, Inc. nor the names of its
-##    contributors may be used to endorse or promote products derived from
-##    this software without specific prior written permission.
-## 5. It is requested that non-binding fixes and modifications be contributed
-##    back to Terrapin Communications, Inc.
-##
-## THIS SOFTWARE IS PROVIDED BY Terrapin Communications, INC. AND CONTRIBUTORS
-## ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-## TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-## PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COMPANY OR CONTRIBUTORS
-## BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-## CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-## SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-## INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-## CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-## ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-## POSSIBILITY OF SUCH DAMAGE.
-#
-#  The expect login scripts were based on Erik Sherk's gwtn, by permission.
+@copyright@
 #
 # complogin - Compass login
 #
@@ -328,7 +291,7 @@ proc login { router user userpswd passwd enapasswd cmethod cyphertype } {
 	incr progs -1
 	if [string match "telnet*" $prog] {
 	    regexp {telnet(:([^[:space:]]+))*} $prog methcmd suffix port
-	    if {"$port" == ""} {
+	    if {"$port" != ""} {
 		set retval [catch {spawn telnet $router} reason]
 	    } else {
 		set retval [catch {spawn telnet $router $port} reason]
@@ -340,13 +303,15 @@ proc login { router user userpswd passwd enapasswd cmethod cyphertype } {
 	} elseif [string match "ssh*" $prog] {
 	    # ssh to the router & try to login with or without an identfile.
 	    regexp {ssh(:([^[:space:]]+))*} $prog methcmd suffix port
-	    if {"$port" == ""} {
-		set cmd [join [lindex $sshcmd 0] " "]
-		set retval [ catch {eval spawn [split "$cmd -c $cyphertype -x -l $user $router" { }]} reason ]
-	    } else {
-		set cmd [join [lindex $sshcmd 0] " "]
-		set retval [ catch {eval spawn [split "$cmd -c $cyphertype -x -l $user -p $port $router" { }]} reason ]
+	    set cmd $sshcmd
+	    if {"$port" != ""} {
+		# XXX set cmd [join [lindex $sshcmd 0] " "]
+		set cmd "$cmd -p $port"
 	    }
+	    if {"$cyphertype" != ""} {
+		set cmd "$cmd -c $cyphertype"
+	    }
+	    set retval [catch {eval spawn [split "$cmd -x -l $user $router" { }]} reason]
 	    if { $retval } {
 		send_user "\nError: $sshcmd failed: $reason\n"
 		return 1
@@ -515,6 +480,9 @@ proc login { router user userpswd passwd enapasswd cmethod cyphertype } {
 	    send_user "\nError: host key mismatch for $router.  Update the SSH known_hosts file accordingly.\n"
 	    catch {close}; catch {wait};
 	    return 1
+	}
+	-nocase -re "^warning: remote host denied authentication agent forwarding." {
+	    exp_continue;
 	}
 	-re "(denied|Sorry)"	{
 				  send_user "\nError: Check your passwd for $router\n"
@@ -830,7 +798,6 @@ foreach router [lrange $argv $i end] {
         set cyphertype $cypher
     } else {
         set cyphertype [find cyphertype $router]
-        if { "$cyphertype" == "" } { set cyphertype "3des" }
     }
 
     # Figure out connection method

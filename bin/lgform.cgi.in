@@ -1,6 +1,6 @@
 #! @PERLV_PATH@
 ##
-## $Id: lgform.cgi.in 3030 2015-02-03 17:08:18Z heas $
+## $Id: lgform.cgi.in 3352 2016-04-04 10:15:53Z heas $
 ##
 ## @PACKAGE@ @VERSION@
 ## Copyright (c) @COPYYEARS@ by Terrapin Communications, Inc.
@@ -87,7 +87,7 @@ sub dolog
 	if (open(LOG, ">>$file") == 0) {
 	    # stderr, if all else fails
 	    printf(STDERR "[" . strftime("%a %b %e %H:%M:%S %Y", gmtime) .
-			"] could not open log file $file: $!\n");
+		   "] could not open log file $file: $!\n");
 	    printf(STDERR $msg);
 	} else {
 	    printf(LOG $msg);
@@ -123,7 +123,7 @@ sub readconf
 	eval $cmds;
     } else {
 	printf(STDERR "ERROR: couldn\'t open the configuration file: " .
-							"$conffile: $!\n");
+	       "$conffile: $!\n");
 	exit(1);
     }
 
@@ -167,7 +167,7 @@ sub readrouters
 		if (open(RTR, "< $LOCALSTATEDIR/$dir/router.db")) {
 		    while (<RTR>) {
 			next if (/^\s*(#|$)/);
-			# fqdn:mfg:state
+			# fqdn;mfg;state
 			@record = split('\;', $_);
 			next if ($record[2] !~ /up/i || $record[1] !~ /(cisco|foundry|juniper)/);
 			push(@rtrlist, join(':', ($record[0], $record[1])));
@@ -184,7 +184,7 @@ sub readrouters
 	if (open(RTR, "< $rtrdb")) {
 	    while (<RTR>) {
 		next if (/^\s*(#|$)/);
-		# fqdn:mfg:state
+		# fqdn;mfg;state
 		@record = split('\;', $_);
 		next if ($record[2] !~ /up/i || $record[1] !~ /(cisco|foundry|juniper)/);
 		push(@rtrlist, join(':', ($record[0], $record[1])));
@@ -244,7 +244,7 @@ TABLEHEAD
 
 foreach $sub_type (sort keys(%$queries)) {
     next if (! scalar(%{$queries->{$sub_type}}));
-    print $query->radio_group (-name => 'query',
+    print $query->radio_group(-name => 'query',
 				-values => $queries->{$sub_type},
 				-default => '-', -linebreak => 'true');
     print "\n" . $query->hr . "\n";

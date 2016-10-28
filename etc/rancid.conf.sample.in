@@ -37,17 +37,22 @@ PATH=@bindir@:@ENV_PATH@; export PATH
 # Set to the name of the sendmail executable (or script) that will accept the
 # -t option to take its rcpt and other headers from std-in and $MAILOPTS (see
 # below).
-#SENDMAIL="@SENDMAIL@"
+SENDMAIL="@SENDMAIL@"
 #
-# Location of the CVS/SVN/GIT repository.  Be careful changing this.
+# Location of the CVS/SVN/GIT repository(ies).  Be careful changing this.
 # If RCSSYS is svn or git, this can be:
 # - an (absolute) path (a subdirectory of BASEDIR by default).  BASEDIR/CVS,
-#   BASEDIR/.svn, or BASEDIR/.git, but it does not matter.
-# - any URL that git/subversion understand, but beware that:
+#   BASEDIR/.svn, or BASEDIR/.scm; the name does not matter, but do not use
+#   BASEDIR/.git, as it will confuse git.
+# - for git, there will be a repository under CVSROOT for each rancid group.
+# - any URL that git or subversion understand, but beware that:
 #   - no attempt will be made to create the repository when running rancid-cvs.
 #   - authentication credentials, if necessary, MUST be cached (see the SVN
 #     book, Ch. 3, Network Model, Caching credentials) before non-interactive
 #     commands can run, e.g. by running rancid-cvs after installation.
+#   - for git, it is likely easiest to leave CVSROOT as a local path, use
+#     rancid-cvs to create the repository for groups, then move those
+#     repositories to the remote and update the group's .git/config.
 CVSROOT=$BASEDIR/CVS; export CVSROOT
 # Location of log files produced by rancid-run(1).
 LOGDIR=$BASEDIR/logs; export LOGDIR
@@ -56,6 +61,10 @@ LOGDIR=$BASEDIR/logs; export LOGDIR
 # change this after CVSROOT has been created with rancid-cvs.  Changing between
 # these requires manual conversions.
 RCSSYS=@RCSSYS@; export RCSSYS
+#
+# if ACLFILTERSEQ is NO, prefix-list/access-list sequence numbers will NOT be
+# filtered.  this option implies ACLSORT=NO for lists with sequence numbers.
+#ACLFILTERSEQ=YES; export FILTERSEQ
 #
 # if ACLSORT is NO, access-lists will NOT be sorted.
 #ACLSORT=YES; export ACLSORT
@@ -68,8 +77,14 @@ RCSSYS=@RCSSYS@; export RCSSYS
 # value set (NO | YES | ALL).  see rancid.conf(5).
 #FILTER_PWDS=YES; export FILTER_PWDS
 #
-# if NOCOMMSTR is set, snmp community strings will be stripped from the configs
+# if NOCOMMSTR is set to YES, snmp community strings will be stripped from the
+# configs.
 #NOCOMMSTR=YES; export NOCOMMSTR
+#
+# FILTER_OSC determines if oscillating data such as keys, passwords, etc are
+# filtered from configs by the value set (NO | YES).  FILTER_PWDS may override
+# this.  see rancid.conf(5).
+#FILTER_OSC=YES; export FILTER_OSC
 #
 # How many times failed collections are retried (for each run) before
 # giving up.  Minimum: 0

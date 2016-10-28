@@ -1,44 +1,9 @@
 package iosxr;
 ##
-## $Id: iosxr.pm.in 2963 2014-12-16 23:52:22Z heas $
+## $Id: iosxr.pm.in 3418 2016-07-05 22:45:09Z heas $
 ##
 ## @PACKAGE@ @VERSION@
-## Copyright (c) @COPYYEARS@ by Terrapin Communications, Inc.
-## All rights reserved.
-##
-## This code is derived from software contributed to and maintained by
-## Terrapin Communications, Inc. by Henry Kilmer, John Heasley, Andrew Partan,
-## Pete Whiting, Austin Schutz, and Andrew Fort.
-##
-## Redistribution and use in source and binary forms, with or without
-## modification, are permitted provided that the following conditions
-## are met:
-## 1. Redistributions of source code must retain the above copyright
-##    notice, this list of conditions and the following disclaimer.
-## 2. Redistributions in binary form must reproduce the above copyright
-##    notice, this list of conditions and the following disclaimer in the
-##    documentation and/or other materials provided with the distribution.
-## 3. All advertising materials mentioning features or use of this software
-##    must display the following acknowledgement:
-##        This product includes software developed by Terrapin Communications,
-##        Inc. and its contributors for RANCID.
-## 4. Neither the name of Terrapin Communications, Inc. nor the names of its
-##    contributors may be used to endorse or promote products derived from
-##    this software without specific prior written permission.
-## 5. It is requested that non-binding fixes and modifications be contributed
-##    back to Terrapin Communications, Inc.
-##
-## THIS SOFTWARE IS PROVIDED BY Terrapin Communications, INC. AND CONTRIBUTORS
-## ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-## TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-## PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COMPANY OR CONTRIBUTORS
-## BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-## CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-## SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-## INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-## CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-## ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-## POSSIBILITY OF SUCH DAMAGE.
+@copyright@
 #
 #  RANCID - Really Awesome New Cisco confIg Differ
 #
@@ -129,6 +94,12 @@ CMD:	if (/[>#]\s?exit$/) {
 		$clean_run = 0;
 		last TOP;
 	    }
+	    if (! defined(&{$commands{$cmd}})) {
+		printf(STDERR "$host: undefined function - \"%s\"\n",
+		       $commands{$cmd});
+		$clean_run = 0;
+		last TOP;
+	    }
 	    $rval = &{$commands{$cmd}}($INPUT, $OUTPUT, $cmd);
 	    delete($commands{$cmd});
 	    if ($rval == -1) {
@@ -154,8 +125,12 @@ sub ShowVersion {
 	tr/\015//d;
 	if (/^$prompt/) { $found_version = 1; last};
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	next if (/^(\e\[.\d+h)?sysadmin-vm:[^#]+# /i);			# NCS
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(0) if ($found_version);		# Only do this routine once
 	return(-1) if (/command authorization failed/i);
 
@@ -231,80 +206,7 @@ sub ShowVersion {
 		s/^/, /;
 	    }
 
-	    if ($proc eq "CSC") {
-		$type = "AGS";
-	    } elsif ($proc eq "CSC4") {
-		$type = "AGS+";
-	    } elsif ($proc =~ /1900/) {
-		$type = "1900";
-		$device = "switch";
-	    } elsif ($proc =~ /2811/) {
-		$type = "2800";
-            } elsif ( $proc =~ /^ME-3400/) {
-                $type = "ME3400";
-            } elsif ( $proc =~ /^ME-C37/) {
-                $type = "ME3700";
-            } elsif ( $proc =~ /^ME-C65/) {
-                $type = "ME6500";
-	    } elsif ($proc =~ /C3750/) {
-		$type = "3750";
-		$device = "switch";
-	    } elsif ($proc =~ /^(AS)?25[12][12]/) {
-		$type = "2500";
-	    } elsif ($proc =~ /261[01]/ || $proc =~ /262[01]/ ) {
-		$type = "2600";
-	    } elsif ($proc =~ /WS-C29/) {
-		$type = "2900XL";
-		$device = "switch";
-	    } elsif ($proc =~ /WS-C355/) {
-		$type = "3550";
-		$device = "switch";
-	    } elsif ($proc =~ /WS-C35/) {
-		$type = "3500XL";
-		$device = "switch";
-	    } elsif ($proc =~ /^36[0246][0-9]/) {
-		$type = "3600";
-	    } elsif ($proc =~ /^37/) {
-		$type = "3700";
-            } elsif ( $proc =~ /WS-C375/) {
-                $type = "3750";
-                $device = "switch";
-	    } elsif ($proc =~ /^38/) {
-		$type = "3800";
-	    } elsif ($proc =~ /WS-C45/) {
-		$type = "4500";
-		$device = "switch";
-	    } elsif ( $proc =~ /^AS5300/) {
-		$type = "AS5300";
-	    } elsif ( $proc =~ /^AS5350/) {
-		$type = "AS5350";
-	    } elsif ( $proc =~ /^AS5400/) {
-		$type = "AS5400";
-	    } elsif ($proc =~ /6000/) {
-		$type = "6000";
-		$device = "switch";
-	    } elsif ($proc eq "WK-C65") {
-		$type = "6500";
-            } elsif ( $proc =~ /WS-C6509/) {
-                $type = "6500";
-                $device = "router";
-	    } elsif ($proc eq "RP") {
-		$type = "7000";
-	    } elsif ($proc eq "RP1") {
-		$type = "7000";
-	    } elsif ($proc =~ /720[246]/) {
-		$type = "7200";
-	    } elsif ( $proc =~ /^73/) {
-		$type = "7300";
-	    } elsif ($proc eq "RSP7000") {
-		$type = "7500";
-	    } elsif ($proc =~ /RSP\d/) {
-		$type = "7500";
-	    } elsif ($proc =~ /OSR-76/) {
-		$type = "7600";
-	    } elsif ($proc =~ /CISCO76/) {
-		$type = "7600";
-	    } elsif ($proc =~ /1200[48]\/(GRP|PRP)/ || $proc =~ /1201[26]\/(GRP|PRP)/) {
+	    if ($proc =~ /1200[48]\/(GRP|PRP)/ || $proc =~ /1201[26]\/(GRP|PRP)/) {
 		$type = "12000";
 	    } elsif ($proc =~ /1201[26]-8R\/(GRP|PRP)/) {
 		$type = "12000";
@@ -317,6 +219,10 @@ sub ShowVersion {
                     $proc = $1;
                 } elsif (/(ASR\S+)\s+Chassis/) {
                     $proc = $1;
+                } elsif (/(ASR)\s+(9\d+)\s+.*\s+Chassis with/) {
+		    tr/\015//d;
+                    chomp;
+                    $proc = $_;
                 } elsif (/(ASR)\s+(9\S+)\s+(\SC)\s+Chassis/) {
                     $proc = "ASR-". $2;
                 } elsif (/(ASR)\s+(9\S+)\s+Chassis/) {
@@ -394,10 +300,19 @@ sub AdminShowDiag {
 	tr/\015//d;
 	last if (/^$prompt/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	next if (/^(\e\[.\d+h)?sysadmin-vm:[^#]+# /i);			# NCS
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(-1) if (/command authorization failed/i);
+
+	# skip blank lines
 	/^$/ && next;
+	# NCS junk
+	next if (/^\S+ connected from 127.0.0.1 using console /);
+	next if (/# terminal length 0$/);
 
 	s/^NODE //;
 	# wtf are these?
@@ -422,22 +337,62 @@ sub AdminShowRunning {
 	tr/\015//d;
 	last if (/^$prompt/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	next if (/^(\e\[.\d+h)?sysadmin-vm:[^#]+# /i);			# NCS
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(-1) if (/command authorization failed/i);
+
+	# skip blank lines
 	/^$/ && next;
+	# NCS junk
+	next if (/^\S+ connected from 127.0.0.1 using console /);
+	next if (/# terminal length 0$/);
 
 	/^building configuration/i && next;
 	if (/^(\s*secret) / && $filter_pwds >= 2) {
-	    ProcessHistory("SLOT","","","!$1 <removed>\n");
+	    ProcessHistory("ASR","","","!$1 <removed>\n");
 	    next;
 	}
 
-	ProcessHistory("SLOT","","","!$_");
+	ProcessHistory("ASR","","","!$_");
 
 	/^end$/ && last;
     }
-    ProcessHistory("SLOT","","","!\n");
+    ProcessHistory("ASR","","","!\n");
+    return(0);
+}
+
+# This routine parses "admin show hw-module fpd location all".
+sub ShowHWfpd {
+    my($INPUT, $OUTPUT, $cmd) = @_;
+    print STDERR "    In ShowRunning: $_" if ($debug);
+
+    while (<$INPUT>) {
+	tr/\015//d;
+	last if (/^$prompt/);
+	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
+	return(1) if (/Line has invalid autocommand /);
+	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	next if (/^(\e\[.\d+h)?sysadmin-vm:[^#]+# /i);			# NCS
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
+	return(-1) if (/command authorization failed/i);
+
+	# skip blank lines
+	/^$/ && next;
+	# NCS junk
+	next if (/^\S+ connected from 127.0.0.1 using console /);
+	next if (/# terminal length 0$/);
+
+	/^notes:/i && last;
+
+	ProcessHistory("FPD","","","!$_");
+    }
+    ProcessHistory("FPD","","","!\n");
     return(0);
 }
 
@@ -451,8 +406,12 @@ sub ShowRedundancy {
 	tr/\015//d;
 	last if (/^$prompt/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	next if (/^(\e\[.\d+h)?sysadmin-vm:[^#]+# /i);			# NCS
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 
 	if (/^Version information for secondary in slot (\d+):/) {
 	    $slave = " Slave:";
@@ -479,9 +438,12 @@ sub ShowInstallActive {
 	tr/\015//d;
 	last if (/^$prompt/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/^\s*\^\s*$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(-1) if (/command authorization failed/i);
 
 	ProcessHistory("COMMENTS","keysort","F5","!Image: $_") && next;
@@ -498,10 +460,14 @@ sub ShowEnv {
     while (<$INPUT>) {
 	tr/\015//d;
 	if (/^$prompt/) { $found_env = 1; last};
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
-	#return(1) if ($type !~ /^7/);
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	next if (/^(\e\[.\d+h)?sysadmin-vm:[^#]+# /i);			# NCS
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(0) if ($found_env);		# Only do this routine once
 	return(-1) if (/command authorization failed/i);
 
@@ -509,14 +475,15 @@ sub ShowEnv {
 	    $E0 = 1;
 	    ProcessHistory("COMMENTS","keysort","E0","!\n");
 	}
-	if (/^Arbiter type (\d), backplane type (\S+)/) {
-	    if (!defined($C0)) {
-		$C0 = 1; ProcessHistory("COMMENTS","keysort","C0","!\n");
+
+	if (/power budget summary for rack/i) {
+	    ProcessHistory("COMMENTS","keysort","E1","!Power: $_");
+	    while (<$INPUT>) {
+		tr/\015//d;
+		goto OUT if (/^$prompt/);
+		last if (/^altitude information/i);
+		ProcessHistory("COMMENTS","keysort","E1","!Power: $_");
 	    }
-	    ProcessHistory("COMMENTS","keysort","C1",
-		"!Enviromental Arbiter Type: $1\n");
-	    ProcessHistory("COMMENTS","keysort","A2",
-		"!Chassis type: $2 backplane\n");
 	    next;
 	}
 	/^Power Supply Information$/ && next;
@@ -530,6 +497,7 @@ sub ShowEnv {
 	/^\s*(RPS is .*)/i &&
 	    ProcessHistory("COMMENTS","keysort","E2","!Power: $1\n") && next;
     }
+OUT:
     ProcessHistory("COMMENTS","","","!\n");
     return(0);
 }
@@ -545,11 +513,16 @@ sub DirSlotN {
 	tr/\015//d;
 	last if (/^$prompt/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if /^\s*\^\s*$/;
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(1) if (/(No such device|Error Sending Request)/i);
+	return(1) if (/: path doesnot exists/i);	# NCS
 	return(1) if (/\%Error: No such file or directory/);
+	return(1) if (/\%Error: No route to host/);
 	return(1) if (/No space information available/);
 	# Corrupt flash
 	/\%Error calling getdents / &&
@@ -561,8 +534,8 @@ sub DirSlotN {
 	return(1) if (/(Open device \S+ failed|Error opening \S+:)/);
 	# filter frequently changing files from IOX bootflash, hardiska,
 	# and nvram
-	if ($dev =~ /(bootflash|harddisk|nvram)/) {
-	    if (/(ce_switch.log|temp_cont|temp_static_data|uptime_cont|volt_cont)\s*$/) {
+	if ($dev =~ /(bootflash|disk0|harddisk|nvram)/) {
+	    if (/\s(aaa|ce_switch.log|errmsg_cont|genstr_cont|temp_cont|temp_static_data|uptime_cont|volt_cont)\s*$/) {
 		# change
 		# 57          -rw-  23100       <no date>              volt_cont
 		# 614788      drwx  4096        Fri Aug 20 12:06:25 2010  temp_cont
@@ -590,17 +563,20 @@ sub DirSlotN {
 	if ($proc =~ /ASR9K/ && /dlbg\.txt/) {
 	    next;
 	}
-	if (/.*\((\d+) bytes free\)/) {
+	if (/.*\((\d+) (k?bytes) free\)/) {
  	    my($tmp) = $1;
+ 	    my($sz) = $2;
+	    $tmp *= 1024 if ($sz eq "kbytes");	# NCS summarizes in kbytes
+	
 	    if ($tmp >= (1024 * 1024 * 1024)) {
 		$tmp = int($tmp / (1024 * 1024 * 1024));
-		s/$1 bytes free/$tmp GB free/;
+		s/$1 $sz free/$tmp GB free/;
 	    } elsif ($tmp >= (1024 * 1024)) {
 		$tmp = int($tmp / (1024 * 1024));
-		s/$1 bytes free/$tmp MB free/;
+		s/$1 $sz free/$tmp MB free/;
 	    } else {
 		$tmp = int($tmp / 1024);
-		s/$1 bytes free/$tmp KB free/;
+		s/$1 $sz free/$tmp KB free/;
 	    }
 	}
 
@@ -620,15 +596,22 @@ sub ShowBootVar {
 	tr/ -~\n//cd;
 	last if (/^$prompt/);
 	next if (/\s*$cmd\s*$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/^\s*\^\s*$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	next if (/^(\e\[.\d+h)?sysadmin-vm:[^#]+# /i);			# NCS
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(1) if (/Ambiguous command/i);
 	return(1) if (/(Open device \S+ failed|Error opening \S+:)/);
 	return(-1) if (/command authorization failed/i);
 
 	# skip blank lines
 	next if (/^\s*$/);
+	# NCS junk
+	next if (/^\S+ connected from 127.0.0.1 using console /);
+	next if (/# terminal length 0$/);
 
 	ProcessHistory("COMMENTS", "keysort", "C30", "! $_");
     }
@@ -647,7 +630,10 @@ sub ShowContAll {
 	tr/\015//d;
 	last if (/^$prompt/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	# return(1) if ($type =~ /^(12[40]|7[05])/);
 	return(-1) if (/command authorization failed/i);
 
@@ -707,8 +693,11 @@ sub ShowDebug {
 	tr/\015//d;
 	last if (/^$prompt/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(-1) if (/command authorization failed/i);
 
 	/^No matching debug flags set$/ && next;
@@ -732,15 +721,24 @@ sub ShowInstallSummary {
 	tr/ -~\n//cd;
 	last if (/^$prompt/);
 	next if (/\s*$cmd\s*$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/^\s*\^\s*$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	next if (/^(\e\[.\d+h)?sysadmin-vm:[^#]+# /i);			# NCS
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(1) if (/Ambiguous command/i);
 	return(1) if (/(Open device \S+ failed|Error opening \S+:)/);
 	return(-1) if (/command authorization failed/i);
+	return(-1) if (/inventory summary cannot be output/i);	# temp error
+	return(-1) if (/currently affected by install operation/i);# temp error
 
 	# skip blank lines
 	next if (/^\s*$/);
+	# NCS junk
+	next if (/^\S+ connected from 127.0.0.1 using console /);
+	next if (/# terminal length 0$/);
 
 	ProcessHistory("COMMENTS", "keysort", "C15", "! $_");
     }
@@ -761,13 +759,21 @@ sub ShowInventory {
 	return if (/^\s*\^$/);
 	last if (/^$prompt/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	next if (/^(\e\[.\d+h)?sysadmin-vm:[^#]+# /i);			# NCS
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(-1) if (/command authorization failed/i);
+
+	# NCS junk
+	next if (/^\S+ connected from 127.0.0.1 using console /);
+	next if (/# terminal length 0$/);
 
 	# remove spaces after quotes
 	s/\"\s+/\"/g;
-	if (/^(NAME: "[^"]*",) (DESCR: "[^"]+")/) {
+	if (/^(name: "[^"]*",) (descr: "[^"]+")/i) {
 	    ProcessHistory("INVENTORY","","", sprintf("!%-30s %s\n", $1, $2));
 	    next;
 	}
@@ -795,29 +801,44 @@ sub ShowInventory {
     return(0);
 }
 
-# This routine parses "admin show license"
+# This routine parses "admin show license" & "admin show license udi"
 sub ShowLicense {
     my($INPUT, $OUTPUT, $cmd) = @_;
     print STDERR "    In ShowLicense: $_" if ($debug);
 
     while (<$INPUT>) {
+	tr/\015//d;
 	# delete non-ascii chars, except new line
-	tr/ -~\n//cd;
 	last if (/^$prompt/);
 	next if (/\s*$cmd\s*$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (/^\s*\^\s*$/);
+	next if (/^-+\^$/i);	# NCS cmd-line error pointer
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	next if (/^(\e\[.\d+h)?sysadmin-vm:[^#]+# /i);			# NCS
+	return(1) if (/^syntax error: element does not exist$/i);	# NCS
+	return(1) if (/^syntax error: unknown argument$/i);		# NCS
 	return(1) if (/Ambiguous command/i);
 	return(1) if (/(Open device \S+ failed|Error opening \S+:)/);
 	return(-1) if (/command authorization failed/i);
 
+	# show lic on o/s w/o licenses
+	s/info\s*: //;
+
+	# file feature status line (ASR9k, others?)
+	next if (/\s*status: /i);
+
 	# skip blank lines
 	next if (/^\s*$/);
+	# NCS junk
+	next if (/^\S+ connected from 127.0.0.1 using console /);
+	next if (/# terminal length 0$/);
 
 	ProcessHistory("COMMENTS", "keysort", "C20", "! $_");
     }
-    ProcessHistory("COMMENTS", "keysort", "C29", "!\n");
+    ProcessHistory("COMMENTS", "keysort", "C20", "!\n");
 
     return(0);
 }
@@ -831,9 +852,12 @@ sub ShowRPL {
 	tr/\015//d;
 	last if (/^$prompt/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if /^\s*\^\s*$/;
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(1) if (/Ambiguous command/i);
 	return(-1) if (/command authorization failed/i);
 
@@ -852,9 +876,12 @@ sub ShowVLAN {
 	tr/\015//d;
 	last if (/^$prompt/);
 	next if (/^(\s*|\s*$cmd\s*)$/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if /^\s*\^\s*$/;
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(1) if (/Ambiguous command/i);
 	return(-1) if (/command authorization failed/i);
 
@@ -871,11 +898,14 @@ sub WriteTerm {
     my($lineauto,$comment,$linecnt) = (0,0,0);
 
     while (<$INPUT>) {
-	tr/\015//d;
+REPEAT:	tr/\015//d;
 	last if (/^$prompt/);
+	# filter the bloody cmd-line timestamp
+	next if (/^\w{3} \w{3,4} {1,3}\d{1,2} {1,2}\d{1,2}:\d+:\d+\.\d+ \S+$/);
 	return(1) if (!$linecnt && /^\s+\^\s*$/);
 	return(1) if (/Line has invalid autocommand /);
 	return(1) if (/(Invalid (input|command) detected|Type help or )/i);
+	return(1) if (/^(-+\^|syntax error: unknown argument)$/i);	# NCS
 	return(1) if (/\%Error: No such file or directory/);
 	return(0) if ($found_end);		# Only do this routine once
 	return(-1) if (/command authorization failed/i);
@@ -888,6 +918,10 @@ sub WriteTerm {
 	if (!$linecnt && defined($config_register)) {
 	    ProcessHistory("","","", "!\nconfig-register $config_register\n");
 	}
+
+	# NCS junk
+	next if (/^\S+ connected from 127.0.0.1 using console /);
+	next if (/# terminal length 0$/);
 
 	/Non-Volatile memory is in use/ && return(-1); # NvRAM is locked
 	/% Configuration buffer full, / && return(-1); # buffer is in use
@@ -1088,13 +1122,17 @@ sub WriteTerm {
 	/^access-list\s+(\d\d\d)\s+(\S+)\s+ip\s+any/ &&
 	    ProcessHistory("EACL $1 $2","$aclsort","0.0.0.0","$_") && next;
 	# sort ipv{4,6} access-lists
-	if (/^ipv(4|6) access-list (\S+)\s*$/) {
+	if ($aclfilterseq && /^ipv(4|6) access-list (\S+)\s*$/) {
 	    my($nlri, $key) = ($1, $2);
 	    my($seq, $cmd);
 	    ProcessHistory("ACL $nlri $key","","","$_");
 	    while (<$INPUT>) {
 		tr/\015//d;
-		last if (/^$prompt/ || /^\S/);
+		goto REPEAT if (/^$prompt/ || !/^(\s|\d|!)/);
+		if (/^\s*!/) {
+		    ProcessHistory("ACL $nlri $key !", "", "", "$_");
+		    next;
+		}
 		# ipv4 access-list name
 		#  remark NTP
    		#  deny ipv4 host 224.0.1.1 any
@@ -1107,7 +1145,7 @@ sub WriteTerm {
 		#  permit ipv6 2001:nnn::/nnn any
 		#  permit 2001:nnnn::/64 any
 		#  permit udp any eq 123 any
-		my($seq, $cmd, $resid) = ($_ =~ /^\s+(\d+) (\w+) (.+)/);
+		my($seq, $cmd, $resid) = ($_ =~ /^\s*(\d+) (\w+) (.+)/);
 		if ($cmd =~ /(permit|deny)/) {
 		    my($ip);
 		    my(@w) = ($resid =~ /(\S+) (\S+) (\S+\s)?(.+)/);
@@ -1140,9 +1178,11 @@ sub WriteTerm {
 	/^ip prefix-list\s+(\S+)\s+seq\s+(\d+)\s+(permit|deny)\s+(\d\S+)(.*)/ &&
 	    ProcessHistory("PACL $1 $3","$aclsort","$4","ip prefix-list $1 $3 $4$5\n")
 	    && next;
-	/^ip(v4|v6) prefix-list\s+(\S+)\s+seq\s+(\d+)\s+(permit|deny)\s+(\S+)(.*)/ &&
-	    ProcessHistory("PACL $2 $4","$aclsort","$5","ip$1 prefix-list $2 $4 $5$6\n")
-	    && next;
+	if ($aclfilterseq) {
+	    /^ip(v4|v6) prefix-list\s+(\S+)\s+seq\s+(\d+)\s+(permit|deny)\s+(\S+)(.*)/ &&
+		ProcessHistory("PACL $2 $4","$aclsort","$5","ip$1 prefix-list $2 $4 $5$6\n")
+		&& next;
+	}
 	# order logging statements
 	/^logging (\d+\.\d+\.\d+\.\d+)/ &&
 	    ProcessHistory("LOGGING","ipsort","$1","$_") && next;

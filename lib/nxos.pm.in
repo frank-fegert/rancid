@@ -1,44 +1,9 @@
 package nxos;
 ##
-## $Id: nxos.pm.in 3049 2015-03-05 10:12:42Z heas $
+## $Id: nxos.pm.in 3420 2016-07-06 00:33:36Z heas $
 ##
 ## @PACKAGE@ @VERSION@
-## Copyright (c) @COPYYEARS@ by Terrapin Communications, Inc.
-## All rights reserved.
-##
-## This code is derived from software contributed to and maintained by
-## Terrapin Communications, Inc. by Henry Kilmer, John Heasley, Andrew Partan,
-## Pete Whiting, Austin Schutz, and Andrew Fort.
-##
-## Redistribution and use in source and binary forms, with or without
-## modification, are permitted provided that the following conditions
-## are met:
-## 1. Redistributions of source code must retain the above copyright
-##    notice, this list of conditions and the following disclaimer.
-## 2. Redistributions in binary form must reproduce the above copyright
-##    notice, this list of conditions and the following disclaimer in the
-##    documentation and/or other materials provided with the distribution.
-## 3. All advertising materials mentioning features or use of this software
-##    must display the following acknowledgement:
-##        This product includes software developed by Terrapin Communications,
-##        Inc. and its contributors for RANCID.
-## 4. Neither the name of Terrapin Communications, Inc. nor the names of its
-##    contributors may be used to endorse or promote products derived from
-##    this software without specific prior written permission.
-## 5. It is requested that non-binding fixes and modifications be contributed
-##    back to Terrapin Communications, Inc.
-##
-## THIS SOFTWARE IS PROVIDED BY Terrapin Communications, INC. AND CONTRIBUTORS
-## ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-## TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-## PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COMPANY OR CONTRIBUTORS
-## BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-## CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-## SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-## INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-## CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-## ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-## POSSIBILITY OF SUCH DAMAGE.
+@copyright@
 #
 #  RANCID - Really Awesome New Cisco confIg Differ
 #
@@ -88,7 +53,7 @@ sub init {
     $C0 = 0;				# output formatting control
     $E0 = 0;
     $H0 = 0;
-    $DO_SHOW_VLAN = 0;
+    $DO_SHOW_VLAN = 1;
 
     # add content lines and separators
     ProcessHistory("","","","!RANCID-CONTENT-TYPE: $devtype\n!\n");
@@ -132,6 +97,12 @@ TOP: while(<$INPUT>) {
 		$clean_run = 0;
 		last TOP;
 	    }
+	    if (! defined(&{$commands{$cmd}})) {
+		printf(STDERR "$host: undefined function - \"%s\"\n",
+		       $commands{$cmd});
+		$clean_run = 0;
+		last TOP;
+	    }
 	    $rval = &{$commands{$cmd}}($INPUT, $OUTPUT, $cmd);
 	    delete($commands{$cmd});
 	    if ($rval == -1) {
@@ -160,6 +131,7 @@ sub ShowVersion {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(-1) if (/\% Invalid command at /);
+	return(-1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -173,7 +145,9 @@ sub ShowVersion {
 		if (/^$/) {
 		    goto EndSoftware;
 		}
-		/\s*([^:]*:)\s*(.*)$/ && ProcessHistory("COMMENTS","keysort","C1", "!Software: $1 $2\n") && next;
+		/\s*([^:]*:)\s*(.*)$/ &&
+		    ProcessHistory("COMMENTS","keysort","C1",
+				   "!Software: $1 $2\n") && next;
 	    }
 	}
 EndSoftware:
@@ -196,21 +170,26 @@ EndSoftware:
 		}
 		if (/^\s*(.*) CPU\s*with (\d*) kB(.*)$/) {
 		    my($tmp) = int($2 / 1024);
-		    ProcessHistory("COMMENTS","keysort","A2", "!Hardware: $1 CPU with $tmp MB$3\n");
+		    ProcessHistory("COMMENTS","keysort","A2",
+				   "!Hardware: $1 CPU with $tmp MB$3\n");
 		    next;
 		}
 		if (/^\s*(.*)\s*with (\d*) kB(.*)$/) {
 		    my($tmp) = int($2 / 1024);
-		    ProcessHistory("COMMENTS","keysort","A2", "!Hardware: $1with $tmp MB$3\n");
+		    ProcessHistory("COMMENTS","keysort","A2",
+				   "!Hardware: $1with $tmp MB$3\n");
 		    next;
 		}
-		/^\s*(.*)$/ && ProcessHistory("COMMENTS","keysort","A2", "!Hardware: $1\n") && next;
+		/^\s*(.*)$/ &&
+		    ProcessHistory("COMMENTS","keysort","A2",
+				   "!Hardware: $1\n") && next;
 	    }
 	}
 EndHardware:
 	if (/^\s+(bootflash|slot0):\s+(\d+) kB(.*)$/) {
 	    my($tmp) = int($2 / 1024);
-	    ProcessHistory("COMMENTS","keysort","B1", "!Memory: $1: $tmp MB$3\n");
+	    ProcessHistory("COMMENTS","keysort","B1",
+			   "!Memory: $1: $tmp MB$3\n");
 	    next;
 	}
 
@@ -218,7 +197,8 @@ EndHardware:
 
     print STDERR "TYPE = $type\n" if ($debug);
     # XXX $proc is never set
-    ProcessHistory("COMMENTS","keysort","A1", "!Chassis type: $proc - a $type router\n");
+    ProcessHistory("COMMENTS","keysort","A1",
+		   "!Chassis type: $proc - a $type router\n");
     ProcessHistory("COMMENTS","keysort","B0", "!\n");
     ProcessHistory("COMMENTS","keysort","C0", "!\n");
     ProcessHistory("COMMENTS","","", "!\n");
@@ -237,6 +217,7 @@ sub ShowVersionBuild {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if (/\% Invalid command at /);
+	return(1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -261,6 +242,7 @@ sub ShowLicense {
 	next if (/^(\s*|\s*$cmd\s*)$/);
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if (/\% Invalid command at /);
+	return(-1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -284,6 +266,7 @@ sub ShowRedundancy {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if (/\% Invalid command at /);
+	return(-1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -307,6 +290,7 @@ sub ShowEnv {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if (/\% Invalid command at /);
+	return(1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -340,7 +324,8 @@ sub ShowEnvTemp {
 	next if (/^(\s*|\s*$cmd\s*)$/);
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
-	return(-1) if (/\% Invalid command at /);
+	return(1) if (/No token match at /);	# 1000v
+	return(1) if (/\% Invalid command at /);# 1000v has no support
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -387,10 +372,11 @@ sub ShowEnvPower {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if (/\% Invalid command at /);
+	return(1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
-# Cut out Actual Output/Draw.
+# Filter Actual Output/Draw.
 #Power                              Actual        Total
 #Supply    Model                    Output     Capacity    Status
 #                                 (Watts )     (Watts )
@@ -403,7 +389,39 @@ sub ShowEnvPower {
 #-------  -------------------  -----------  -----------  --------------
 #2        NURBURGRING                N/A          573 W    Powered-Up
 #fan1                                N/A          720 W    Powered-Up
-	if ( /(.* +)(\d+ W)( +\d+ W.*)/) {
+#
+# ELSE
+#
+# nexus# sh environment power
+# Power Supply:
+# Voltage: 12 Volts
+# Power                             Actual      Actual        Total
+# Supply    Model                   Output      Input      Capacity    Status
+#                                 (Watts )    (Watts )     (Watts )  
+# -------  -------------------  ----------  ----------  ----------
+# --------------
+# 1        N9K-PAC-650W-B             65 W        76 W       649 W     Ok
+# 2        N9K-PAC-650W-B             70 W        84 W       649 W     Ok
+#  
+#  
+# Power Usage Summary:
+# --------------------
+# Power Supply redundancy mode (configured)                PS-Redundant
+# Power Supply redundancy mode (operational)               PS-Redundant
+#          
+# Total Power Capacity (based on configured mode)             649.92 W
+# Total Grid-A (first half of PS slots) Power Capacity        649.92 W 
+# Total Grid-B (second half of PS slots) Power Capacity       649.92 W
+# Total Power of all Inputs (cumulative)                     1299.84 W
+# Total Power Output (actual draw)                            136.00 W
+# Total Power Input (actual draw)                             161.00 W
+# Total Power Allocated (budget)                                N/A
+# Total Power Available for additional modules                  N/A  
+# 
+# nexus#
+	if (/(.* +)(\d+ W +\d+ W)( +\d+ W.+)/) {
+	    $_ = sprintf("%s%-". length($2)."s%s\n", $1, "", $3);
+	} elsif (/(.* +)(\d+ W)( +\d+ W.+)/) {
 	    $_ = sprintf("%s%-". length($2)."s%s\n", $1, "", $3);
 	}
 
@@ -430,6 +448,7 @@ sub ShowBoot {
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if /Ambiguous command/i;
 	return(-1) if (/\% Invalid command at /);
+	return(-1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -464,6 +483,12 @@ sub DirSlotN {
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 	return(1) if /(Open device \S+ failed|Error opening \S+:)/;
+
+	# Drop ee.log
+	/\s+ee\.log(?:\..*)?$/ && next;
+
+	# Drop accounting.log
+	/\s+accounting\.log$/ && next;
 
 	next if (/BufferMonitor-1HourData/);
 	if (/ log\/$/) {
@@ -502,6 +527,7 @@ sub ShowModule {
 	last if (/^$prompt/);
 	next if (/^\s*$cmd\s*$/);
 	return(1) if (/\% Invalid command at /);
+	return(1) if (/\% Invalid number at /);
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -528,6 +554,7 @@ sub ShowInventory {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if (/\% Invalid command at /);
+	return(-1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -576,6 +603,7 @@ sub ShowVTP {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if (/\% Invalid command at /);
+	return(1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 	next if (/^Configuration last modified by/);
@@ -585,8 +613,9 @@ sub ShowVTP {
 	    s/^$1\s{$len}//;
 	}
 
-	if (/^VTP Operating Mode\s+:\s+(Transparent|Server)/) {
-	    $DO_SHOW_VLAN = 1;
+	# Nexus 5k and 1000v do note support vtp
+	if (!/^VTP Operating Mode\s+:\s+(Transparent|Server)/) {
+	    $DO_SHOW_VLAN = 0;
 	}
 	ProcessHistory("COMMENTS","","","!VTP: $_");
     }
@@ -609,6 +638,7 @@ sub ShowVLAN {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(-1) if (/\% Invalid command at /);
+	return(-1) if (/No token match at /);	# 1000v
 	return(1) if /Ambiguous command/i;
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
@@ -637,6 +667,7 @@ sub ShowDebug {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(-1) if (/\% Invalid command at /);
+	return(-1) if (/No token match at /);	# 1000v
 	return(-1) if (/command authorization failed/i);
 	return(-1) if (/could not retrieve info/i);
 	# XXX return(-1) if (/\% Permission denied/);
@@ -667,6 +698,7 @@ sub ShowCores {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if (/\% Invalid command at /);
+	return(1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -689,6 +721,7 @@ sub ShowFex {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if (/\% Invalid command at /);
+	return(1) if (/% Invalid number at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -710,6 +743,7 @@ sub ShowProcLog {
 	return(1) if /Line has invalid autocommand /;
 	return(1) if /(Invalid input detected|Type help or )/;
 	return(1) if (/\% Invalid command at /);
+	return(-1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
 
@@ -726,14 +760,15 @@ sub WriteTerm {
     my($lineauto,$comment,$linecnt) = (0,0,0);
 
     while (<$INPUT>) {
-	tr/\015//d;
+REPEAT:	tr/\015//d;
 	last if (/^$prompt/);
 	return(1) if /Line has invalid autocommand /;
 	return(1) if (/(Invalid input detected|Type help or )/i);
 	return(-1) if (/\% Invalid command at /);
-	return(0) if ($found_end);		# Only do this routine once
+	return(-1) if (/No token match at /);	# 1000v
 	return(-1) if (/\% Permission denied/);
 	return(-1) if (/command authorization failed/i);
+	return(0) if ($found_end);		# Only do this routine once
 
 	$linecnt++;
 	$lineauto = 0 if (/^[^ ]/);
@@ -745,20 +780,74 @@ sub WriteTerm {
 	# Sort username and delete passwords.
 	if (/^username (\S+) password (\d) (\S+)(\s.*)$/) {
 	    if ($filter_pwds >= 2) {
-		ProcessHistory("USER","keysort","$1","!username $1 password <removed>$4\n");
+		ProcessHistory("USER","keysort","$1",
+			       "!username $1 password <removed>$4\n");
 	    } elsif ($filter_pwds >= 1 && $2 ne "5") {
-		ProcessHistory("USER","keysort","$1","!username $1 password <removed>$4\n");
+		ProcessHistory("USER","keysort","$1",
+			       "!username $1 password <removed>$4\n");
 	    } else {
 		ProcessHistory("USER","keysort","$1","$_");
 	    }
 	    next;
 	}
 	# Sort any other username info.
-	/^username (\S+) .*$/ && ProcessHistory("USER","keysort","$1","$_") && next;
+	/^username (\S+) .*$/ &&
+	    ProcessHistory("USER","keysort","$1","$_") && next;
 	if (/^\s*(.*?neighbor \S*) password / && $filter_pwds >= 1) {
 	    ProcessHistory("","","","! $1 password <removed>\n");
 	    next;
 	}
+	# sort ipv{4,6} access-lists
+	if ($aclfilterseq && /^ip(v4|v6)? access-list (\S+)\s*$/) {
+	    my($nlri, $key) = ($1, $2);
+	    my($seq, $cmd);
+	    if (length($nlri) eq 0) {
+		$nlri = "ipv4";	# assume ip will become ipv4 at some point
+	    }
+	    ProcessHistory("ACL $nlri $key","","","$_");
+	    while (<$INPUT>) {
+		tr/\015//d;
+		goto REPEAT if (/^$prompt/ || /^(\s|\d|!)/);
+		if (/^\s*!/) {
+		    ProcessHistory("ACL $nlri $key !", "", "", "$_");
+		    next;
+		}
+		# ip access-list copp-system-acl-bgp
+		#   10 permit tcp any gt 1024 any eq bgp
+		#   20 permit tcp any eq bgp any gt 1024
+		# ipv6 access-list copp-system-acl-bgp6
+		#   10 permit tcp any gt 1024 any eq bgp
+		#   20 permit tcp any eq bgp any gt 1024
+		# XXX this may need more format handling; going off email with
+		#     a user.
+		my($seq, $cmd, $resid) = ($_ =~ /^\s*(\d+) (\w+) (.+)/);
+		if ($cmd =~ /(permit|deny)/) {
+		    my($ip);
+		    my(@w) = ($resid =~ /(\S+) (\S+) (\S+\s)?(.+)/);
+		    for (my($i) = 0; $i < $#w; $i++) {
+			if ($w[$i] eq "any") {
+			    if ($nlri eq "ipv4") {
+				$ip = "255.255.255.255/32";
+			    } else {
+				$ip = "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128";
+			    }
+			    last;
+			} elsif ($w[$i] =~ /^[:0-9]/ ||
+				 $2[$i] =~ /^[a-fA-F]{1,4}:/) {
+			    $ip = $w[$i];
+			    $ip =~ s/\s+$//;		# trim trailing WS
+			    last;
+			}
+		    }
+		    ProcessHistory("ACL $nlri $key $cmd", "$aclsort", "$ip",
+				   " $cmd $resid\n");
+		} else {
+		    ProcessHistory("ACL $nlri $key $cmd", "", "",
+				   " $cmd $resid\n");
+		}
+	    }
+	}
+
 	# Why was this commented out? It shows up in the raw text...
 	if (/^(snmp-server community) (\S+)/) {
 	    if ($filter_commstr) {
@@ -772,14 +861,16 @@ sub WriteTerm {
 	# Sort snmp user and delete passwords.
 	if (/^snmp-server user (\S+) (\S+) auth md5 (\S+) priv (\S+) localizedkey$/) {
 	    if ($filter_pwds >= 2) {
-		ProcessHistory("SNMP-USER","keysort","$1","!snmp-server user $1 $2 auth md5 <removed> priv <removed> localizedkey\n");
+		ProcessHistory("SNMP-USER","keysort","$1",
+			       "!snmp-server user $1 $2 auth md5 <removed> priv <removed> localizedkey\n");
 	    } else {
 		ProcessHistory("SNMP-USER","keysort","$1","$_");
 	    }
 	    next;
 	}
 	# Sort any other snmp user info.
-	/^snmp-server user (\S+) .*$/ && ProcessHistory("SNMP-USER","keysort","$1","$_") && next;
+	/^snmp-server user (\S+) .*$/ &&
+	    ProcessHistory("SNMP-USER","keysort","$1","$_") && next;
 	# Delete bgp passwords.
 	if (/^(\s*)password (\d) (\S+)(\s.*)?$/) {
 	    if ($filter_pwds >= 2) {

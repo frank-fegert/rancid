@@ -5,24 +5,37 @@
 # with a different type name.  If you override existing types, it will be harder
 # to provide support to you and I will make a voodoo doll in your likeness.
 #
+a10;script;rancid -t a10
+a10;login;a10login
+a10;module;acos
+a10;inloop;acos::inloop
+a10;command;acos::ShowVersion;show version
+a10;command;acos::ShowLicense;show license
+a10;command;acos::ShowBootimage;show bootimage
+a10;command;acos::ShowAdmin;show admin
+a10;command;acos::ShowVlan;show vlan
+a10;command;acos::ShowAflex;show aflex all-partitions
+a10;command;acos::ShowRunningConfig;show running-config all-partitions
+#
 agm;script;agmrancid
 #
-adtran;script;rancid -t adtran
-adtran;module;adtran
-adtran;inloop;adtran::inloop
-adtran;login;clogin
+# XXX This was the start of support for adtran, but it is incomplete.
+#adtran;script;rancid -t adtran
+#adtran;module;adtran
+#adtran;inloop;adtran::inloop
+#adtran;login;clogin
 # TA5000
-adtran;command;adtran::ShowVersion;show version
-adtran;command;adtran::ShowSystemInventory;show system inventory
-adtran;command;adtran::ShowTableInterfaces;show table interfaces
-adtran;command;adtran::ShowEvc;show evc
-adtran;command;adtran::ShowEvcmap;show evc-map
-adtran;command;adtran::ShowEfmgroup;show efm-group 1
-adtran;command;adtran::ShowInterfacesShdsl;show interfaces shdsl
-adtran;command;adtran::ShowInterfacesAdsl;show interfaces adsl
+#adtran;command;adtran::ShowVersion;show version
+#adtran;command;adtran::ShowSystemInventory;show system inventory
+#adtran;command;adtran::ShowTableInterfaces;show table interfaces
+#adtran;command;adtran::ShowEvc;show evc
+#adtran;command;adtran::ShowEvcmap;show evc-map
+#adtran;command;adtran::ShowEfmgroup;show efm-group 1
+#adtran;command;adtran::ShowInterfacesShdsl;show interfaces shdsl
+#adtran;command;adtran::ShowInterfacesAdsl;show interfaces adsl
 # EFM NTU
-adtran;command;adtran::ShowInterfaces;show interfaces
-adtran;command;adtran::WriteTerm;show running-config
+#adtran;command;adtran::ShowInterfaces;show interfaces
+#adtran;command;adtran::WriteTerm;show running-config
 #
 alteon;script;arancid
 alteon;login;alogin
@@ -35,8 +48,21 @@ arbor;command;arbor::ShowVersion;system version
 arbor;command;arbor::ShowHardware;system hardware
 arbor;command;arbor::ShowConfig;config show
 #
-arista;script;arrancid
+arista;script;rancid -t arista
 arista;login;clogin
+arista;module;aeos
+arista;inloop;aeos::inloop
+arista;command;aeos::ShowVersion;show version
+arista;command;aeos::ShowBoot;show boot-config
+arista;command;aeos::ShowEnv;show env all
+arista;command;aeos::ShowFlash;dir flash:
+arista;command;aeos::ShowInventory;show inventory
+arista;command;aeos::ShowBootExt;show boot-extensions
+arista;command;aeos::ShowExt;show extensions
+arista;command;aeos::DiffConfig;diff startup-config running-config
+#arista;command;aeos::WriteRibd;show tech ribd running
+arista;command;aeos::WriteTerm;show running-config
+#
 #
 avocent;script;avorancid
 avocent;login;avologin
@@ -44,6 +70,32 @@ avocent;login;avologin
 baynet;script;brancid
 baynet;login;blogin
 #
+# Brocade
+#XXX brocade;script;rancid -t brocade
+brocade;login;brlogin
+#XXX brocade;module; XXX
+#XXX brocade;inloop; XXX
+#XXX brocade;command;XXX::ChassisShow;chassisShow
+#XXX brocade;command;XXX::FirmwareShow;firmwareShow
+#XXX brocade;command;XXX::FirmwareShow;version
+#XXX brocade;command;XXX::FirmwareShow;zoneshow
+#XXX brocade;command;XXX::FirmwareShow;portcfgshow
+#XXX brocade;command;XXX::Fosconfig;fosConfig --show
+#XXX brocade;command;XXX::IpAddrShow;ipAddrShow
+#XXX brocade;command;XXX::LicenseShow;licenseShow
+#XXX brocade;command;XXX::DomainsShow;domainsShow
+#XXX brocade;command;XXX::ConfigShow;configShow
+#
+# Ciena Waveserver (XXX WiP)
+ciena-ws;script;rancid -t ciena-ws
+ciena-ws;login;hlogin
+ciena-ws;module;wavesvros
+ciena-ws;inloop;wavesvros::inloop
+ciena-ws;command;wavesvros::ShowVersion;software show
+ciena-ws;command;wavesvros::ShowChassis;chassis show
+ciena-ws;command;wavesvros::WriteTerm;configuration show
+#
+# Cisco Catalyst 5k (all catalyst o/s switches)
 cat5;script;cat5rancid
 cat5;login;clogin
 #
@@ -63,7 +115,12 @@ cisco;command;ios::ShowGSR;show diag chassis-info
 cisco;command;ios::ShowBoot;show boot
 cisco;command;ios::ShowBoot;show bootvar
 cisco;command;ios::ShowBoot;show variables boot
-cisco;command;ios::ShowFlash;show flash
+cisco;command;ios::ShowLicense;show license udi
+cisco;command;ios::ShowLicense;show license feature
+cisco;command;ios::ShowLicense;show license
+cisco;command;ios::ShowLicense;show license summary
+cisco;command;ios::ShowActivationKey;show activation-key;ASA/PIX
+cisco;command;ios::ShowFlash;show flash:
 cisco;command;ios::DirSlotN;dir /all nvram:
 cisco;command;ios::DirSlotN;dir /all bootflash:
 cisco;command;ios::DirSlotN;dir /all slot0:
@@ -164,8 +221,10 @@ cisco-xr;command;rancid::RunCommand;terminal no-timestamp;Disable timestamps XR 
 cisco-xr;command;rancid::RunCommand;terminal exec prompt no-timestamp;Disable timestamps XR 3.8
 cisco-xr;command;iosxr::ShowVersion;admin show version
 cisco-xr;command;iosxr::ShowInstallSummary;admin show install summary;XR image
+cisco-xr;command;iosxr::ShowLicense;admin show license udi;XR image
 cisco-xr;command;iosxr::ShowLicense;admin show license;XR image
 cisco-xr;command;iosxr::ShowBootVar;admin show variables boot;XR image
+cisco-xr;command;iosxr::ShowHWfpd;admin show hw-module fpd location all;XR LC images
 cisco-xr;command;iosxr::ShowRedundancy;show redundancy secondary
 cisco-xr;command;iosxr::ShowInstallActive;show install active
 cisco-xr;command;iosxr::ShowEnv;admin show env all
@@ -184,22 +243,6 @@ cisco-xr;command;iosxr::DirSlotN;dir /all disk2:
 cisco-xr;command;iosxr::DirSlotN;dir /all harddisk:
 cisco-xr;command;iosxr::DirSlotN;dir /all harddiska:
 cisco-xr;command;iosxr::DirSlotN;dir /all harddiskb:
-cisco-xr;command;iosxr::DirSlotN;dir /all slavenvram:
-cisco-xr;command;iosxr::DirSlotN;dir /all slavebootflash:
-cisco-xr;command;iosxr::DirSlotN;dir /all slaveslot0:
-cisco-xr;command;iosxr::DirSlotN;dir /all slavedisk0:
-cisco-xr;command;iosxr::DirSlotN;dir /all slaveslot1:
-cisco-xr;command;iosxr::DirSlotN;dir /all slavedisk1:
-cisco-xr;command;iosxr::DirSlotN;dir /all slaveslot2:
-cisco-xr;command;iosxr::DirSlotN;dir /all slavedisk2:
-cisco-xr;command;iosxr::DirSlotN;dir /all sec-nvram:
-cisco-xr;command;iosxr::DirSlotN;dir /all sec-bootflash:
-cisco-xr;command;iosxr::DirSlotN;dir /all sec-slot0:
-cisco-xr;command;iosxr::DirSlotN;dir /all sec-disk0:
-cisco-xr;command;iosxr::DirSlotN;dir /all sec-slot1:
-cisco-xr;command;iosxr::DirSlotN;dir /all sec-disk1:
-cisco-xr;command;iosxr::DirSlotN;dir /all sec-slot2:
-cisco-xr;command;iosxr::DirSlotN;dir /all sec-disk2:
 cisco-xr;command;iosxr::ShowContAll;show controllers
 cisco-xr;command;iosxr::AdminShowDiag;admin show diag
 cisco-xr;command;iosxr::ShowInventory;admin show inventory raw
@@ -248,28 +291,90 @@ dell;inloop;dell::inloop
 dell;command;dell::GetSystem;show switch
 dell;command;dell::GetConf;show config current_config
 #
+# UBNT EdgeMAX
+edgemax;script;rancid -t edgemax
+edgemax;login;clogin
+edgemax;module;edgemax
+edgemax;inloop;edgemax::inloop
+edgemax;command;edgemax::ShowVersion;show version
+edgemax;command;edgemax::ShowHardware;show hardware
+edgemax;command;edgemax::ShowBootvar;show bootvar
+edgemax;command;edgemax::ShowEnvironment;show environment
+edgemax;command;edgemax::ShowDebug;show debug
+edgemax;command;edgemax::DirSlotN;dir
+edgemax;command;edgemax::WriteTerm;show running-config
+#
+# UBNT EdgeRouter
+edgerouter;script;rancid -t edgerouter
+edgerouter;login;ulogin -noenable
+edgerouter;module;edgerouter
+edgerouter;inloop;edgerouter::inloop
+edgerouter;command;rancid::RunCommand;terminal length 0
+edgerouter;command;edgerouter::ShowVersion;show version
+edgerouter;command;edgerouter::ShowHardware;show hardware cpu
+edgerouter;command;edgerouter::ShowOffload;show ubnt offload
+edgerouter;command;edgerouter::WriteTerm;cli-shell-api showConfig --show-active-only
+# XXX show configuration | no-more
+#
+# UBNT EdgeRouter - according to Clemens, ie: with bird.
+edgerouterbird;script;rancid -t edgerouterbird
+edgerouterbird;login;ulogin -noenable
+edgerouterbird;module;edgerouter
+edgerouterbird;inloop;edgerouter::inloop
+edgerouterbird;command;rancid::RunCommand;terminal length 0
+edgerouterbird;command;edgerouter::ShowVersion;show version
+edgerouterbird;command;edgerouter::ShowHardware;show hardware cpu
+edgerouterbird;command;edgerouter::ShowOffload;show ubnt offload
+#edgerouterbird;command;edgerouter::WriteTerm;cat /config/config.boot
+edgerouterbird;command;edgerouter::WriteTerm;cli-shell-api showConfig --show-active-only
+edgerouterbird;command;edgerouter::WriteTerm;cat /config/opt/bird/etc/bird.conf
+edgerouterbird;command;edgerouter::WriteTerm;cat /config/opt/bird/etc/bird6.conf
+#
 enterasys;script;rivrancid
 enterasys;login;rivlogin
 #
 erx;script;jerancid
 erx;login;clogin
 #
-extreme;script;xrancid
-extreme;login;clogin
+extreme;script;rancid -t extreme
+extreme;login;xlogin
+extreme;module;exos
+extreme;inloop;exos::inloop  
+extreme;command;exos::ShowVersion;show version
+extreme;command;exos::ShowMemory;show memory
+extreme;command;exos::ShowDiag;show diag
+extreme;command;exos::ShowSwitch;show switch
+extreme;command;exos::ShowSlot;show slot
+extreme;command;exos::WriteTerm;show configuration detail
+extreme;command;exos::WriteTerm;show configuration
 #
 ezt3;script;erancid
 ezt3;login;elogin
 #
+# f5 big-ip <=v10
 f5;script;f5rancid
 f5;login;clogin
+# f5 big-ip v11
+bigip;script;rancid -t bigip
+bigip;login;clogin
+bigip;module;bigip
+bigip;inloop;bigip::inloop
+bigip;command;bigip::ShowVersion;tmsh show /sys version
+bigip;command;bigip::ShowHardware;tmsh show /sys hardware
+bigip;command;bigip::ShowLicense;tmsh show /sys license
+bigip;command;bigip::ShowZebOSconf;cat /config/ZebOS.conf
+bigip;command;bigip::ShowZebOSsockets;lsof -i :179
+bigip;command;bigip::ShowRouteStatic;tmsh show /net route static
+bigip;command;bigip::WriteTerm;tmsh -q list
 #
+# Force 10 and Dell Force10.
 force10;script;f10rancid
 force10;login;clogin
 #
 fortigate;script;fnrancid
 fortigate;login;fnlogin
 #
-# Foundry and HP procurve OEMs of Foundry
+# Foundry and HP procurve OEMs of Foundry (Brocade ICX-6450s, HP9304M)
 foundry;script;rancid -t foundry
 foundry;login;flogin
 foundry;module;foundry
@@ -277,6 +382,8 @@ foundry;inloop;foundry::inloop
 foundry;command;foundry::ShowVersion;show version
 foundry;command;foundry::ShowChassis;show chassis
 foundry;command;foundry::ShowModule;show module
+foundry;command;foundry::ShowMedia;show media
+foundry;command;foundry::ShowMedia;show media validation
 foundry;command;foundry::ShowFlash;show flash
 foundry;command;foundry::WriteTerm;write term
 foundry;command;foundry::WriteTerm;show running-config
@@ -284,6 +391,8 @@ foundry;command;foundry::WriteTerm;show running-config
 hitachi;script;htrancid
 hitachi;login;htlogin
 #
+# HP Procurve switch such as the 2524, 4108 or J9086A (aka. 2610) procurve 
+# switches, J9091A, and J8698A.  
 hp;script;hrancid
 hp;login;hlogin
 #
@@ -309,6 +418,7 @@ juniper;command;junos::ShowSystemLicense;show system license
 juniper;command;junos::ShowSystemBootMessages;show system boot-messages
 juniper;command;junos::ShowSystemCoreDumps;show system core-dumps
 juniper;command;junos::ShowVersion;show version detail
+juniper;command;junos::ShowVersion;show version invoke-on other-routing-engine
 juniper;command;junos::ShowConfiguration;show configuration
 #
 # juniper-srx type is for SRX with ThreatSTOP; it displays the configuration
@@ -365,7 +475,8 @@ mikrotik;login;mtlogin
 mrtd;script;mrancid
 mrtd;login;clogin
 #
-# MRV optical switches
+# MRV optical switches (NC316, OptiSwitch 904, OptiSwitch 906G, OptiSwitch 912C,
+# OptiSwitch 940)
 mrv;script;rancid -t mrv
 mrv;login;mrvlogin
 mrv;module;mrv
@@ -399,9 +510,21 @@ procket;login;clogin
 redback;script;rrancid
 redback;login;clogin
 #
+riverbed;script;rancid -t riverbed
+riverbed;login;rblogin
+riverbed;module;rbt
+riverbed;inloop;rbt::inloop
+riverbed;command;rbt::ShowVersion;show version
+riverbed;command;rbt::ShowLicenses;show licenses
+riverbed;command;rbt::ShowHardware;show hardware all
+riverbed;command;rbt::ShowInfo;show info
+riverbed;command;rbt::ShowPeers;show peers
+riverbed;command;rbt::WriteTerm;show configuration
+#
 riverstone;script;rivrancid
 riverstone;login;rivlogin
 #
+# SMC and Dell PowerConnect 35xx (3524, 3524P, 3548, 3548P) and 7048
 smc;script;srancid
 smc;login;hlogin
 #

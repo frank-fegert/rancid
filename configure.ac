@@ -15,7 +15,7 @@ AC_INIT(m4_esyscmd(configure.vers package_name),
 	[rancid@shrubbery.net])
 AC_CONFIG_SRCDIR(CHANGES)
 AM_INIT_AUTOMAKE
-COPYYEARS="1997-2015"
+COPYYEARS="1997-2016"
 AC_SUBST(COPYYEARS)
 
 
@@ -48,9 +48,9 @@ AC_C_STRINGIZE
 # check includes/headers
 AC_HEADER_STDC
 AC_CHECK_HEADERS(ctype.h errno.h fcntl.h libutil.h limits.h pty.h malloc.h \
-		 memory.h siginfo.h string.h strings.h stropts.h \
-		 sys/resource.h sys/types.h sys/wait.h sysexits.h unistd.h \
-		 util.h wait.h)
+		 memory.h siginfo.h stdarg.h stdint.h stdlib.h string.h \
+		 strings.h stropts.h sys/resource.h sys/time.h \
+		 sys/types.h sys/wait.h sysexits.h unistd.h util.h wait.h)
 
 # check functions
 AC_CHECK_FUNCS(asprintf memcpy memmove memset strerror strchr \
@@ -275,7 +275,7 @@ if test $PERLV_PATH = no; then
     else
 	$PERLV_PATH -e 'require 5;'
 	if test $? -ne 0 ; then
-           AC_MSG_ERROR([can't locate a suitable perl5.])
+	   AC_MSG_ERROR([can't locate a suitable perl5.])
 	   exit 1
 	fi
     fi
@@ -284,11 +284,27 @@ AC_SUBST(PERLV_PATH)
 PERLV=`basename $PERLV_PATH`
 AC_SUBST(PERLV)
 
+# check Socket.pm version
+AC_MSG_CHECKING([Socket.pm version])
+$PERLV_PATH -e 'use 2.006 Socket qw(inet_pton);' 2>&1 >/dev/null
+if test $? -ne 0 ; then
+   AC_MSG_ERROR([Socket.pm is older than 2.006; upgrade from http://metacpan.org/pod/Socket])
+   exit 1
+fi
+
 AC_PATH_PROG(EXPECT_PATH,expect,no)
 if test $EXPECT_PATH = no; then
     AC_MSG_ERROR([can't locate expect.])
 fi
 AC_SUBST(EXPECT_PATH)
+
+# look for lockfile utility
+AC_PATH_PROG(MKTEMP,mktemp,no)
+if test $MKTEMP = no; then
+    unset ac_cv_path_MKTEMP
+    AC_MSG_ERROR([can't locate a mktemp(1).])
+fi
+AC_SUBST(MKTEMP)
 
 # locate ping and it's syntax
 AC_PATH_PROG(PING_PATH,[ping],[no],
@@ -325,14 +341,17 @@ rd_cv_lg_ping_cmd=$LG_PING_CMD
 # to be sure that we pick up the the proper diff and ucbmail in
 # etc/rancid.conf.
 ENV_PATH="`dirname $PERLV_PATH`:`dirname $EXPECT_PATH`:`dirname \"$SENDMAIL\"`"
-ENV_PATH="$ENV_PATH:`dirname $DIRNAME`:`dirname $DIFF`"
+ENV_PATH="$ENV_PATH:`dirname $DIRNAME`:`dirname $DIFF`:`dirname $MKTEMP`"
 
 if test $RCSSYS = "cvs" ; then
     AC_PATH_PROG(CVS,cvs,no)
     ENV_PATH="$ENV_PATH:`dirname $ac_cv_path_CVS`"
-else
+elif test $RCSSYS = "svn" ; then
     AC_PATH_PROG(SVN,svn,no)
     ENV_PATH="$ENV_PATH:`dirname $ac_cv_path_SVN`"
+else
+    AC_PATH_PROG(GIT,git,no)
+    ENV_PATH="$ENV_PATH:`dirname $ac_cv_path_GIT`"
 fi
 AC_PATH_PROG(COMM,comm,no)
 ENV_PATH="$ENV_PATH:`dirname $ac_cv_path_COMM`"
@@ -357,10 +376,9 @@ ENV_PATH="$ENV_PATH:`dirname $ac_cv_path_TOUCH`"
 ENV_PATH="$ENV_PATH:/usr/local/bin:/usr/bin"
 AC_SUBST(ENV_PATH)
 
-ENV_PATH=`echo $ENV_PATH | $PERLV_PATH -e 'foreach $x(split(":",<>)){next unless (length($x));push(@F, $x),$seen{$x}=1 unless (defined $seen{$x});}print join(":",@F);'`
+ENV_PATH=`echo $ENV_PATH | $PERLV_PATH -e 'foreach $x(split(":",<>)){next unless (length($x));next if ($x =~ /^\.$/);$x =~ s/[\n\r]*//;push(@F, $x),$seen{$x}=1 unless (defined $seen{$x});}print join(":",@F);'`
 ac_cv_env_path=$ENV_PATH
 AC_SUBST(ENV_PATH)
-
 
 AC_CONFIG_FILES(Makefile)
 AC_CONFIG_FILES(bin/Makefile)
@@ -450,14 +468,21 @@ extern int		errno;
 ])
 AC_CONFIG_HEADERS(include/config.h)
 
+AC_CONFIG_FILES(bin/login_top)
+AC_SUBST_FILE([copyright])
+AC_SUBST_FILE([login_top])
+copyright=$srcdir/COPYING
+login_top=$srcdir/bin/login_top
+
 AC_CONFIG_FILES(bin/control_rancid, [chmod a+x $ac_file])
+AC_CONFIG_FILES(bin/a10login, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/agmrancid, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/alogin bin/arancid, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/anlogin, [chmod a+x $ac_file])
-AC_CONFIG_FILES(bin/arrancid, [chmod a+x $ac_file])
 dnl AC_CONFIG_FILES(bin/atrancid, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/avologin bin/avorancid, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/blogin bin/brancid, [chmod a+x $ac_file])
+AC_CONFIG_FILES(bin/brlogin, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/cat5rancid bin/clogin, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/complogin, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/cssrancid, [chmod a+x $ac_file])
@@ -476,13 +501,16 @@ AC_CONFIG_FILES(bin/nlogin bin/nrancid, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/nslogin bin/nsrancid, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/panlogin, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/prancid, [chmod a+x $ac_file])
+AC_CONFIG_FILES(bin/rblogin, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/rivlogin bin/rivrancid, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/rrancid, [chmod a+x $ac_file])
-AC_CONFIG_FILES(bin/srancid, [chmod a+x $ac_file])
+AC_CONFIG_FILES(bin/rtftpcopy, [chmod a+x $ac_file])
+dnl AC_CONFIG_FILES(bin/srancid, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/tlogin, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/trancid, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/xilogin bin/xirancid, [chmod a+x $ac_file])
-AC_CONFIG_FILES(bin/xrancid, [chmod a+x $ac_file])
+AC_CONFIG_FILES(bin/xlogin, [chmod a+x $ac_file])
+AC_CONFIG_FILES(bin/ulogin, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/wlogin, [chmod a+x $ac_file])
 AC_CONFIG_FILES(bin/zrancid, [chmod a+x $ac_file])
 AC_CONFIG_FILES(share/rtrfilter, [chmod a+x $ac_file])

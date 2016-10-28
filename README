@@ -4,7 +4,7 @@ maintain CVS (or Subversion or git) controlled copies of router configs.
 *** The Following Information is Very Important ****
 Rancid 3.0 converts several device scripts (the remaining will follow) to
 libraries used by the single script, named rancid, to parse device output.
-It also requires perl 5.10 minimum.
+It also requires perl 5.10 minimum.  Also see the UPGRADING file.
 
 Rancid 2.3 introduces a new directory layout.  It has been changed to more
 closely follow the standard path hierarchy, which is defined by the FHS
@@ -37,22 +37,22 @@ etc/
 	rancid.types.base	RANCID default device type configuration
 	rancid.types.conf	RANCID user-defined device type configuration
 bin/
-	clogin.in	Expect script that logs into routers and either presents
-			an interactive shell, runs a set of commands, or runs
-			another expect script.  It handles Cisco, Extreme,
-			Force10, Juniper E-series, Procket, Redback, Zebra/MRT.
 	control_rancid.in
 			Builds router list, calls rancid on each router and
 			handles cvs routines.
 	hpuifilter.c	HP procurve login filter - see hlogin(1).
 	par.c		Parallel processing of commands - any commands.
 	rancid-cvs.in	Creates all of the CVS and config directories.
+	rancid-fe.in	Used by crontrol_rancid to determine script rancid used
 	rancid-run.in	Script designed to be run from cron.
-	rancid-fe.in	Chooses between rancid/[abefhjrx]rancid/cat5rancid.
-	rancid.in	Runs commands on cisco routers and processes the output.
 
+	rancid.in	Generic wrapper for the rancid for the rancid libraries
+			that runs commands on their respective device types as
+			defined in etc/rancid.types.* and processes the output.
 	agmrancid.in	Version of rancid.in for Cisco Anomaly Guard Module (AGM)
 	arancid.in	Version of rancid.in for Alteon switches.
+	arrancid.in	Version of rancid.in for Arista Networks devices.
+	avorancid.in	Version of rancid.in for Avocent appliances.
 	brancid.in	Version of rancid.in for baynet/nortel routers.
 	cat5rancid.in	Version of rancid.in for Cisco Catalyst switches.
 	cssrancid.in	Version of rancid.in for Cisco CSS switches.
@@ -60,7 +60,6 @@ bin/
 	f10rancid.in	Version of rancid.in for Force10 routers.
 	f5rancid.in	Version of rancid.in for F5 BigIPs.
 	fnrancid.in	Version of rancid.in for Fortinet Firewalls.
-	francid.in	Version of rancid.in for Foundry switches.
 	hrancid.in	Version of rancid.in for HP Procurve switches.
 	htrancid.in	Version of rancid.in for Hitatchi routers.
 	jerancid.in	Version of rancid.in for Juniper E-series routers.
@@ -69,40 +68,66 @@ bin/
 	nrancid.in	Version of rancid.in for Netscreen firewalls.
 	nsrancid.in	Version of rancid.in for Netscalars.
 	prancid.in	Version of rancid.in for Procket routers.
-	rivancid.in	Version of rancid.in for Riverstone routers.
+	rivancid.in	Version of rancid.in for Cabletron, Riverstone and
+			Enterasys routers.
 	rrancid.in	Version of rancid.in for Redback routers.
+	rtftpcopy.in	Copy configs from tftpboot within rancid.
 	srancid.in	Version of rancid.in for SMC switches.
+	trancid.in	Version of rancid.in for Netopia routers.
 	xirancid.in	Version of rancid.in for Xirrus arrays.
-	xrancid.in	Version of rancid.in for Extreme switches.
 	zrancid.in	Version of rancid.in for Zebra routers.
 
+        a10login.in     Version of clogin.in for A10 load balancers.
 	alogin.in	Version of clogin.in for Alteon switches.
+	anlogin.in	Version of clogin.in for Arbor Networks appliances.
+	avologin.in	Version of clogin.in for Avocent appliances.
 	blogin.in	Version of clogin.in for baynet/Nortel routers.
+	clogin.in	Expect script that logs into routers and either presents
+			an interactive shell, runs a set of commands, or runs
+			another expect script.  It handles Cisco, Extreme,
+			Force10, Juniper E-series, Procket, Redback, Zebra/MRT.
+	complogin.in	Version of clogin.in for Compass Networks routers.
+	dllogin.in	Version of clogin.in for D-Link devices.
 	elogin.in	Version of clogin.in for ADC EZ-T3 muxes.
 	flogin.in	Version of clogin.in for Foundry switches.  If foundry
 			cleaned-up their bloody UI, clogin should do the job.
+	fnlogin.in	Version of clogin.in for Fortinet Firewalls.
 	hlogin.in	Version of clogin.in for HP procurve switches.
 	htlogin.in	Version of clogin.in for Hitatchi routers.
 	jlogin.in	Version of clogin.in for Juniper routers.
+	login_top.in	Common login code included in all login scripts.
 	mtlogin.in	Version of clogin.in for Microtik routers.
 	nlogin.in	Version of clogin.in for Netscreen firewalls.
 	nslogin.in	Version of clogin.in for Netscalars.
+	panlogin.in	Version of clogin.in for Palo Alto Networks devices.
+	plogin.in	Poly-login version of clogin.in; it uses router.db
+			and router.types.* configuration files to determine the
+			login script to use for a device.
+	rblogin.in	Version of clogin.in for Riverbed Steelhead routers.
 	rivlogin.in	Version of clogin.in for Riverstone routers.
+	tlogin.in	Version of clogin.in for Netopia devices.
+	wlogin.in	Version of clogin.in for Cisco Wireless Lan Controllers.
+	xlogin.in	Version of clogin.in for Extreme devices.
 	xilogin.in	Version of clogin.in for Xirrus arrays.
 lib/
+        acos.pm.in      rancid library for A10 Networks appliances.
 	arbor.pm.in	rancid library for Arbor Networks appliances.
+	ciscowlc.pm.in	rancid library for some Cisco Wireless Lan Controllers.
 	dell.pm.in	rancid library for some Dell D-Link models.
 	eos.pm.in	rancid library for Compass EOS.
+	exos.in		rancid library for Extreme switches.
 	foundry.pm.in	rancid library for Foundry (Brocade) switches.
 	ios.pm.in	rancid library for Cisco IOS and IOS-XE.
 	iosxr.pm.in	rancid library for Cisco IOS-XR.
 	junos.pm.in	rancid library for Juniper JunOS.
 	mrv.pm.in	rancid library for MRV MCS.
 	nxos.pm.in	rancid library for Cisco NX-OS.
+	panos.pm.in	rancid library for Palo Alto Networks devices.
 	rancid.pm.in	rancid global functions.
+	rbt.pm.in	rancid library for Riverbed Steelhead.
 man/		man pages
 share/		Readmes, samples, utilities, contribs, etc
-include/	Include files and rancid version.h
+include/	Include files and rancid's version.h
 
 Also see rancid_intro(1), rancid(1), and clogin(1).
 
@@ -121,8 +146,6 @@ missing		part of GNU autoconf
 mkinstalldirs	GNU autoconf shell script to make installation directories
 
 rancid will also need to have the following packages:
-cvs		Code revision system available from prep.ai.mit.edu:/pub/gnu
-git		Code revision system, an alternative to cvs.
 gnudiff		gnudiff provides the uni-diff (-u) option.  If you do not have
 		a diff that supports -u, configure will set-up rancid to use
 		'diff -c' or 'diff -C'.
@@ -130,6 +153,12 @@ perl5		perl version 5.10 or greater available from www.cpan.org
 expect		http://expect.nist.gov/  We highly suggest that you stick to
 		expect 5.24.1 (or so).  This seems to work best.  Note that
 		you need to have the accompanying tcl &/ tk.
+tcl		Required by expect.
+
+and, rancid will also need to have one of the following packages; your choice:
+cvs		Code revision system available from prep.ai.mit.edu:/pub/gnu
+git		Code revision system, an alternative to cvs.  Use the configure
+		option --with-git to configure for git.
 svn		Code revision system, an alternative to cvs.  Available from
 		http://subversion.tigris.org/tarballs/.  Use the configure
 		option --with-svn to configure for Subversion.
@@ -140,7 +169,6 @@ svn		Code revision system, an alternative to cvs.  Available from
 			`pwd`/CVS
 		sh -c '. /path/to/etc/rancid.conf ; for g in $LIST_OF_GROUPS; \
 			do svn co file://`pwd`/.svn/$g; done'
-tcl		Required by expect.
 
 Bill Fenner (now maintained by others) has a cgi script for interacting
 with CVS repositories via a web interface.  This provides a great way to
@@ -173,9 +201,15 @@ Quick Installation Guide (an example):
 
    The user who will run rancid must have write permission in "localstatedir".
 
-   See ./configure --help for other configure options.
+   See ./configure --help for other configure options, including which SCM
+   should use.  Now is the time to choose the SCM..
 
 2) make install
+
+   If rancid is being installed in system locations, then the install will
+   likely need to be done as root.  eg:
+
+   make; sudo make install
 
 3) Modify <sysconfdir>/rancid.conf (e.g.: <basedir>/etc/rancid.conf).  The
    variable LIST_OF_GROUPS is a space delimited list of router "groups".
@@ -188,13 +222,14 @@ Quick Installation Guide (an example):
 
 5) Modify .cloginrc.
 
-   Test to make sure that you can log into every router.
+   Test to make sure that you can log into every router.  The login scripts
+   support options m and M to help debug the .cloginrc; see clogin(1).
 
-   Note: the juniper user you use *must* log into a cli shell (which
-   is the default on a juniper).
+   Note: the JunOS that user you use *must* log into a cli shell (which
+   is the default on a juniper), not a unix shell.
 
    See the file cloginrc.sample, located in <datadir> (<basedir>/share/rancid),
-   for examples and good starting point.  Also take a look at the cloginrc
+   for examples and a good starting point.  Also take a look at the cloginrc
    manual page, 'man -M <basedir>/man cloginrc'.
 
 6) Modify /etc/aliases
@@ -204,11 +239,13 @@ Quick Installation Guide (an example):
    access routers or separate based upon network etc...  Different router
    uses forced different people being interested in router "groups" -
    thus this setup.  Make sure email to rancid-<GROUP> works.  /etc/aliases
-   can be maintainable by Majordomo stuff, but make sure the user that
-   runs rancid can post to the list.
+   can be maintainable by Majordomo or another maillist software or may just
+   forward to a remote machine, but make sure the user that runs rancid can
+   post to the list.
 
-   The Precedence header set to bulk or junk *hopefully* avoids replies from
-   auto-responders and vacation type mail filters.
+   The Precedence header set to bulk or junk and setting the other RFC3834
+   auto-responder headers *hopefully* avoids replies from auto-responders and
+   other vacation type mail filters.
 
    The --enable-mail-plus option to configure will set each of the "rancid-"
    addresses mentioned above to "rancid+".  See sendmail's operation manual
@@ -219,12 +256,14 @@ Quick Installation Guide (an example):
    option is not used, the value of --enable-mail-plus is assumed.  That is,
    the addresses will be "rancid+", if it is specified.
 
+   There are also several mail-related options in rancid.conf.
+
 7) Run rancid-cvs.
    This creates all of the necessary directories and config files for
    each of the groups in LIST_OF_GROUPS and imports them into CVS (or
    Subversion or git).  This will also be run each time a new group is added.
    Do not create the directories or CVS repository manually, allow rancid-cvs
-   do it.  Also see 'man -M <basedir>/man rancid-cvs'.
+   to do it.  Also see 'man -M <basedir>/man rancid-cvs'.
 
 8) For each "group", modify the router.db file in the group directory.
    The file is of the form "router;mfg;state" where "router" is
@@ -256,10 +295,10 @@ Quick Installation Guide (an example):
 	# clean out config differ logs
 	50 23 * * * /usr/bin/find <localstatedir>/logs -type f -mtime +2 -exec rm {} \;
 
-11) Note: If you are using any of these programs (other than
-    rancid-run) out of cron, make sure that you set your $PATH
-    correctly so that they work.  E.g.: if you are using clogin,
-    it can call id, telnet, ssh, and/or rsh.
+11) Note: If you are using any of these programs (other than rancid-run) out
+    of cron or from a shell, make sure that you set your $PATH correctly so
+    that they work.  E.g.: if you are using clogin, it can call id, telnet,
+    ssh, and/or rsh.
 
     configure already makes sure that $PATH is set correctly in
     etc/rancid.conf for rancid-run, so you could use the $PATH from there. e.g.:
@@ -303,4 +342,5 @@ which use some more elaborate regexes that have failed with expect versions
 prior to 5.40.  While 5.40 works, it still seems to need the patch offered
 on the rancid web page for Linux and Solaris.
 
-See www.shrubbery.net/rancid for additional notes on this.
+See www.shrubbery.net/rancid for additional notes on this.  Also the
+UPGRADING file that comes with the distribution.

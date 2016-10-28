@@ -1,7 +1,7 @@
 /*
- * $Id: hpuifilter.c 2997 2014-12-30 19:20:07Z heas $
+ * $Id: hpuifilter.c 3428 2016-07-20 09:47:52Z heas $
  *
- * Copyright (c) 1997-2015 by Terrapin Communications, Inc.
+ * Copyright (c) 1997-2016 by Terrapin Communications, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to and maintained by
@@ -107,6 +107,11 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <termios.h>
+#if HAVE_WAIT_H
+# include <wait.h>
+#elif HAVE_SYS_WAIT_H
+# include <sys/wait.h>
+#endif
 #if HAVE_UTIL_H
 # include <util.h>
 #elif HAVE_LIBUTIL_H
@@ -123,7 +128,7 @@ int		debug,
 		timeo = 5;				/* default timeout   */
 pid_t		child;
 
-int		expectmore(char *buf, int len);
+int		complete_esc(char *buf, int len);
 int		filter(char *, int);
 size_t		mystrcspn(const char *, const char *);
 RETSIGTYPE	reapchild(int);
@@ -210,7 +215,6 @@ main(int argc, char **argv, char **ev)
 		strerror(errno));
 	return(EX_OSERR);
     }
-    tios.c_lflag &= ~ECHO;
     tios.c_lflag &= ~ICANON;
 #ifdef VMIN
     tios.c_cc[VMIN] = 1;
@@ -226,6 +230,7 @@ main(int argc, char **argv, char **ev)
      * if a tty, make it raw as the hp echos _everything_, including
      * passwords.
      */
+    tios.c_lflag &= ~ECHO;
     if (isatty(fileno(stdin))) {
 	if (tcgetattr(fileno(stdin), &tios)) {
 	    fprintf(stderr, "%s: tcgetattr() failed: %s\n", progname,
@@ -372,9 +377,11 @@ main(int argc, char **argv, char **ev)
 		break;
 	    } else if (bytes > 0) {
 		hlen -= bytes;
-		memmove(hbuf, hbuf + bytes, hlen + 1);
-		if (hlen < 1)
-		     pfds[2].events &= ~POLLOUT;
+		if (hlen < 1) {
+		    pfds[2].events &= ~POLLOUT;
+		    hbuf[0] = '\0';
+		} else
+		    memmove(hbuf, hbuf + bytes, hlen + 1);
 	    }
 	}
 	if (pfds[2].revents & POLLEXP) {
@@ -386,7 +393,7 @@ main(int argc, char **argv, char **ev)
 	/* write tbuf (aka telnet/ptym/pfds[2]) -> hlogin (stdout/pfds[1]) */
 	if ((pfds[1].revents & POLLOUT) && tlen) {
 	    /*
-	     * if there is an escape char that didnt get filter()'d,
+	     * if there is an escape char that was not filtered by filter(),
 	     * we need to write only up to that point and wait for
 	     * the bits that complete the escape sequence.  if at least
 	     * two bytes follow it and it doesn't look like we should expect
@@ -395,22 +402,16 @@ main(int argc, char **argv, char **ev)
 	    bytes = tlen;
 	    idx = mystrcspn(tbuf, tbufstr);
 	    if (idx) {
-		if (tbuf[idx] == ESC) {
-		    if (tlen - idx < 2 || expectmore(&tbuf[idx], tlen - idx)) {
-			bytes = idx;
-		    }
-		}
+		if (tbuf[idx] == ESC)
+		    bytes = idx + complete_esc(&tbuf[idx], tlen - idx);
 		if (tbuf[idx] == '\r' || tbuf[idx] == '\n') {
 		    bytes = ++idx;
 		    if (tbuf[idx] == '\r' || tbuf[idx] == '\n')
 			bytes++;
 		}
 	    } else {
-		if (tbuf[0] == ESC) {
-		    if (tlen < 2 || expectmore(tbuf, tlen)) {
-			bytes = 0;
-		    }
-		}
+		if (tbuf[0] == ESC)
+		    bytes = complete_esc(tbuf, tlen);
 		if (tbuf[0] == '\r' || tbuf[0] == '\n') {
 		    bytes = 1;
 		    if (tbuf[1] == '\r' || tbuf[1] == '\n')
@@ -428,9 +429,11 @@ main(int argc, char **argv, char **ev)
 		break;
 	    } else if (bytes > 0) {
 		tlen -= bytes;
-		memmove(tbuf, tbuf + bytes, tlen + 1);
-		if (tlen < 1)
+		if (tlen < 1) {
+		    tbuf[0] = '\0';
 		    pfds[1].events &= ~POLLOUT;
+		} else
+		    memmove(tbuf, tbuf + bytes, tlen + 1);
 	    }
 	}
 	if (pfds[1].revents & POLLEXP) {
@@ -503,32 +506,35 @@ main(int argc, char **argv, char **ev)
 }
 
 /*
- * return non-zero if the escape sequence beginning with buf appears to be
- * incomplete (and the caller should wait for more data).
+ * return zero if the escape sequence beginning with buf appears to be
+ * incomplete (and the caller should wait for more data); or else returns
+ * the index of the first character past the end of the sequence.
  */
 int
-expectmore(char *buf, int len)
+complete_esc(char *buf, int len)
 {
     int	i;
 
+    if (len < 2)
+	return 0;
     if (buf[1] == '[' || isdigit((int)buf[1])) {
 	/* look for a char that ends the sequence */
 	for (i = 2; i < len; i++) {
 	    if (isalpha((int)buf[i]))
-		return(0);
+		return(i + 10);
 	}
-	return(1);
+	return(0);
     }
     if (buf[1] == '#') {
 	/* look for terminating digit */
 	for (i = 2; i < len; i++) {
 	    if (isdigit((int)buf[i]))
-		return(0);
+		return(i + 1);
 	}
-	return(1);
+	return(0);
     }
 
-    return(0);
+    return(1);  /* we don't understand this ESC sequence, consume it */
 }
 
 /*
