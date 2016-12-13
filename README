@@ -89,6 +89,7 @@ bin/
 	complogin.in	Version of clogin.in for Compass Networks routers.
 	dllogin.in	Version of clogin.in for D-Link devices.
 	elogin.in	Version of clogin.in for ADC EZ-T3 muxes.
+	eqllogin.in	Version of clogin.in for Dell/EqualLogic storage arrays.
 	flogin.in	Version of clogin.in for Foundry switches.  If foundry
 			cleaned-up their bloody UI, clogin should do the job.
 	fnlogin.in	Version of clogin.in for Fortinet Firewalls.
@@ -115,6 +116,7 @@ lib/
 	ciscowlc.pm.in	rancid library for some Cisco Wireless Lan Controllers.
 	dell.pm.in	rancid library for some Dell D-Link models.
 	eos.pm.in	rancid library for Compass EOS.
+	equallogic.pm.in	rancid library for Dell/EqualLogic storage arrays.
 	exos.in		rancid library for Extreme switches.
 	foundry.pm.in	rancid library for Foundry (Brocade) switches.
 	ios.pm.in	rancid library for Cisco IOS and IOS-XE.

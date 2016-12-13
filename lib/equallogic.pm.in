@@ -1,0 +1,139 @@
+package equallogic;
+#
+# $Id$
+#
+# @PACKAGE@ @VERSION@
+@copyright@
+#
+# equallogic.pm - Rancid procedures to save the configuration of
+# Dell/EqualLogic storage arrays via Rancid
+#
+# Code tested and working fine on these EqualLogic models:
+#
+#   Dell/EqualLogic PS-M4110
+#   Dell/EqualLogic PS-4210
+#   Dell/EqualLogic PS-6210
+#
+
+use 5.010;
+use strict 'vars';
+use warnings;
+no warnings 'uninitialized';
+require(Exporter);
+our @ISA = qw(Exporter);
+
+use rancid 3.5.1;
+
+@ISA = qw(Exporter rancid main);
+#XXX @Exporter::EXPORT = qw($VERSION @commandtable %commands @commands);
+
+# load-time initialization
+sub import {
+    $timeo = 300;     # eqllogin timeout in seconds (some of these
+                      # devices are remarkably slow to read config)
+
+    0;
+}
+
+# post-open(collection file) initialization
+sub init {
+    # add content lines and separators
+    ProcessHistory("","","","#RANCID-CONTENT-TYPE: EqualLogic\n\n");
+
+    0;
+}
+
+# main loop of input of device output
+sub inloop {
+    my($INPUT, $OUTPUT) = @_;
+    my($cmd, $rval);
+
+TOP: while(<$INPUT>) {
+    tr/\015//d;
+    if (/>\s?logout\s?$/) {
+        $clean_run = 1;
+        last;
+    }
+    if (/^Error:/) {
+        print STDOUT ("$host eqllogin error: $_");
+        print STDERR ("$host eqllogin error: $_") if ($debug);
+        $clean_run = 0;
+        last;
+    }
+    while (/^.+>\s*($cmds_regexp)\s*$/) {
+        $cmd = $1;
+        if ($_ =~ m/^([^#>]+[#>])/) {
+            $prompt = ($_ =~ /^([^#>]+[#>])/)[0];
+            $prompt =~ s/([][}{)(+\\])/\\$1/g;
+            print STDERR ("PROMPT MATCH: $prompt\n") if ($debug);
+        }
+        print STDERR ("HIT COMMAND:$_") if ($debug);
+        if (! defined($commands{$cmd})) {
+            print STDERR "$host: found unexpected command - \"$cmd\"\n";
+            $clean_run = 0;
+            last TOP;
+        }
+        if (! defined(&{$commands{$cmd}})) {
+            printf(STDERR "$host: undefined function - \"%s\"\n", $commands{$cmd});
+            $clean_run = 0;
+            last TOP;
+        }
+        $rval = &{$commands{$cmd}}($INPUT, $OUTPUT, $cmd);
+        delete($commands{$cmd});
+        if ($rval == -1) {
+            $clean_run = 0;
+            last TOP;
+        }
+    }
+    }
+}
+
+# This routine parses the output of "save-config -verbose"
+sub SaveConfiguration {
+    my($INPUT, $OUTPUT, $cmd) = @_;
+    my($password_counter) = (0);
+    print STDERR "  In SaveConfiguration $_" if ($debug);
+
+    while (<$INPUT>) {
+        print STDERR "    Line in SaveConfiguration $_" if ($debug);
+
+        tr/\015//d;
+        next if /^\s*$/;
+        if (/(^Configuration saved to config\.cli\.|You can retrieve the file using ftp or scp\.)\s*$/) {
+            $found_end = 1;
+            return(0);
+        }
+        last if (/$prompt/);
+
+        # Skip the configuration timestamp
+        /^### Generated on / && next;
+
+        # Filter passwords if the "FILTER_PWDS" option is set
+        if ( $filter_pwds > 0 ) {
+            # Filter the password of the iSCSI CHAP user
+            if (/^(\s*chapuser create "[^"]*" enable password) "[^"]*"/) {
+                ProcessHistory("","","","$1 \"<removed>\"\n");
+                next;
+            }
+            # Filter the iSCSI target authorization username and password
+            if (/^(\s*target-auth-(?:password|username)) "[^"]*"/) {
+                ProcessHistory("","","","$1 \"<removed>\"\n");
+                next;
+            }
+        }
+
+        # Filter SNMP community strings if the "NOCOMMSTR" option is set
+        if ( $filter_commstr > 0 ) {
+            if (/^(\s*snmp (?:read-only|read-write|trap)-comm) "[^"]*"/) {
+                ProcessHistory("","","","$1 \"<removed>\"\n");
+                next;
+            }
+        }
+
+        ProcessHistory("","","","$_");
+    }
+
+    return(1);
+}
+
+1;

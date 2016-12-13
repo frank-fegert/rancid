@@ -333,6 +333,13 @@ edgerouterbird;command;edgerouter::WriteTerm;cat /config/opt/bird/etc/bird6.conf
 enterasys;script;rivrancid
 enterasys;login;rivlogin
 #
+# Dell/EqualLogic storage arrays
+equallogic;login;eqllogin
+equallogic;script;rancid -t equallogic
+equallogic;module;equallogic
+equallogic;inloop;equallogic::inloop
+equallogic;command;equallogic::SaveConfiguration;save-config -verbose
+#
 erx;script;jerancid
 erx;login;clogin
 #
